@@ -56,7 +56,7 @@ export default function RootLayout({
 
           {/* Footer */}
           <footer className="border-t border-hairline bg-canvas py-16 px-6">
-            <div className="mx-auto max-w-[1280px]">
+            <div className="mx-auto max-w-[1400px]">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-4 mb-12">
                 {/* Column 1: Info */}
                 <div className="col-span-2 flex flex-col gap-4">

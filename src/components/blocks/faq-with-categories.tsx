@@ -32,55 +32,58 @@ const FaqSectionWithCategories = React.forwardRef<HTMLElement, FaqSectionWithCat
     return (
       <section
         ref={ref}
-        className={cn("w-full px-5 py-24 sm:px-6 lg:py-28", className)}
+        className={cn("py-16 w-full", className)}
         {...props}
       >
-        <div className="mx-auto max-w-[1280px]">
-          <div className="grid gap-12 md:grid-cols-[0.42fr_0.58fr]">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
             {/* Header */}
-            <div className="border-t border-hairline pt-5">
-              <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-mute">Technical FAQ</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-foreground sm:text-4xl">
+            <div className="text-center space-y-4 mb-12">
+              <h2 className="text-4xl font-bold text-foreground">
                 {title}
               </h2>
               {description && (
-                <p className="mt-4 max-w-md text-xs leading-6 text-muted-foreground">
+                <p className="text-muted-foreground">
                   {description}
                 </p>
               )}
             </div>
 
             {/* FAQ Items */}
-            <Accordion type="single" collapsible className="border-t border-hairline">
+            <Accordion type="single" collapsible className="space-y-4">
               {items.map((item, index) => (
                 <AccordionItem
                   key={index}
                   value={`item-${index}`}
                   className={cn(
-                    "border-b border-hairline bg-transparent text-card-foreground"
+                    "mb-4 rounded-xl",
+                    "bg-card text-card-foreground",
+                    "border border-border/60",
+                    "shadow-sm dark:shadow-black/10"
                   )}
                 >
                   <AccordionTrigger 
                     className={cn(
-                      "px-0 py-5 text-left hover:no-underline"
+                      "px-6 py-4 text-left hover:no-underline",
+                      "data-[state=open]:border-b data-[state=open]:border-border/60"
                     )}
                   >
                     <div className="flex flex-col gap-2">
                       {item.category && (
                         <Badge
                           variant="secondary"
-                          className="w-fit rounded-[4px] text-[9px] font-normal"
+                          className="w-fit text-xs font-normal"
                         >
                           {item.category}
                         </Badge>
                       )}
-                      <h3 className="text-sm font-medium text-foreground group-hover:text-primary">
+                      <h3 className="text-lg font-medium text-foreground group-hover:text-primary">
                         {item.question}
                       </h3>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="px-0 pb-6 pt-0">
-                    <p className="max-w-xl text-xs leading-6 text-muted-foreground">
+                  <AccordionContent className="px-6 pt-4 pb-6">
+                    <p className="text-muted-foreground leading-relaxed">
                       {item.answer}
                     </p>
                   </AccordionContent>
@@ -90,7 +93,7 @@ const FaqSectionWithCategories = React.forwardRef<HTMLElement, FaqSectionWithCat
 
             {/* Contact Section */}
             {contactInfo && (
-              <div className="mt-10">
+              <div className="mt-12 text-center">
                 <p className="text-muted-foreground mb-4">
                   {contactInfo.title}
                 </p>

@@ -21,30 +21,32 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-xl transition-all duration-200">
-        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-5 sm:px-6">
+      <header className="sticky top-0 z-50 h-16 border-b border-hairline bg-canvas/95 backdrop-blur-sm transition-all duration-200">
+        <div className="mx-auto flex h-full max-w-[1400px] items-center justify-between px-6">
           {/* Left: Logo */}
           <Link
             href="/"
-            className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="flex items-center gap-2.5 group focus-visible:ring-1 focus-visible:ring-primary focus:outline-none"
             onClick={() => setMobileMenuOpen(false)}
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-[5px] border border-hairline bg-canvas-soft text-primary font-mono text-sm font-bold transition-colors group-hover:border-hairline-strong">
+            <div className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-canvas border border-hairline text-primary font-mono text-sm font-bold transition-colors group-hover:border-hairline-strong">
               <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M12 2L2 22h20L12 2zm0 4l6.5 13h-13L12 6z" />
               </svg>
             </div>
-            <span className="font-sans text-[13px] font-semibold tracking-[-0.02em] text-ink">
+            <span className="font-sans text-sm font-bold tracking-tight text-ink">
               LogStrata
             </span>
-            <span className="hidden border-l border-hairline pl-2 font-mono text-[8px] uppercase tracking-[0.14em] text-mute sm:inline">control plane</span>
+            <span className="border border-hairline px-1.5 py-0.5 font-mono text-[9px] uppercase text-mute tracking-wider rounded-[4px]">
+              v1.0.0
+            </span>
           </Link>
 
           {/* Middle: Nav Links (Desktop) */}
-          <nav className="hidden h-full items-center gap-7 md:flex">
+          <nav className="hidden md:flex items-center gap-6 h-full">
             <Link
               href="/#features"
-              className={`flex h-full items-center border-b px-0.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary ${
+              className={`text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary flex items-center h-full px-1 border-b-2 ${
                 "border-transparent text-body hover:text-ink"
               }`}
             >
@@ -52,7 +54,7 @@ export function Header() {
             </Link>
             <Link
               href="/#architecture"
-              className={`flex h-full items-center border-b px-0.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary ${
+              className={`text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary flex items-center h-full px-1 border-b-2 ${
                 "border-transparent text-body hover:text-ink"
               }`}
             >
@@ -60,7 +62,7 @@ export function Header() {
             </Link>
             <Link
               href="/dashboard"
-              className={`flex h-full items-center border-b px-0.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary ${
+              className={`text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary flex items-center h-full px-1 border-b-2 ${
                 activeTab === "dashboard"
                   ? "border-primary text-primary font-semibold"
                   : "border-transparent text-body hover:text-ink"
@@ -70,7 +72,7 @@ export function Header() {
             </Link>
             <Link
               href="/docs/getting-started"
-              className={`flex h-full items-center border-b px-0.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary ${
+              className={`text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:text-primary flex items-center h-full px-1 border-b-2 ${
                 activeTab === "docs"
                   ? "border-primary text-primary font-semibold"
                   : "border-transparent text-body hover:text-ink"
@@ -85,7 +87,7 @@ export function Header() {
             {/* Theme Toggle Button */}
             <button
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-[5px] border border-hairline bg-canvas text-body transition-colors hover:bg-canvas-soft hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-hairline bg-canvas hover:bg-canvas-soft text-body hover:text-ink transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-primary focus:outline-none"
               aria-label="Toggle visual theme"
             >
               {resolvedTheme === "dark" ? (
@@ -97,13 +99,13 @@ export function Header() {
 
             <Link
               href="/login"
-              className="hidden h-7 items-center justify-center px-2 text-[11px] font-medium text-body transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:inline-flex"
+              className="hidden sm:inline-flex items-center justify-center rounded-[6px] border border-hairline bg-canvas hover:bg-canvas-soft transition-colors px-3 h-8 text-xs font-semibold text-body hover:text-ink focus-visible:ring-1 focus-visible:ring-primary focus:outline-none"
             >
               Log In
             </Link>
             <Link
               href="/signup"
-              className="stark-btn-primary inline-flex h-7 items-center justify-center rounded-[5px] px-3 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="stark-btn-primary rounded-[6px] px-4 h-8 text-xs font-semibold focus-visible:ring-1 focus-visible:ring-primary focus:outline-none inline-flex items-center justify-center"
             >
               Sign Up
             </Link>
@@ -122,7 +124,7 @@ export function Header() {
 
       {/* Mobile Dropdown Navigation */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-14 z-40 border-b border-hairline bg-canvas px-6 py-4 shadow-diffused transition-all duration-200 md:hidden">
+        <div className="md:hidden fixed inset-x-0 top-16 z-40 border-b border-hairline bg-canvas px-6 py-4 shadow-diffused transition-all duration-200">
           <nav className="flex flex-col gap-2">
             <Link
               href="/#features"
