@@ -40,3 +40,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local agent instructions, skills, and planning artifacts
+/.agents/
+/.codex/
+/.claude/
+/.cursor/
+/.superpowers/
+/.vscode/
+/AGENTS.md
+/CLAUDE.md
+/PROJECT_GUIDE.md
+/Auto_Log_Scaling_Analytics_SRS.md
+/Auto_Log_Scaling_Analytics_SRS.txt
+/skills-lock.json
+/docs/superpowers/
+/tsconfig.tsbuildinfo
