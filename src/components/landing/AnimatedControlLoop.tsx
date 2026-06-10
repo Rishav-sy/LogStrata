@@ -11,243 +11,247 @@ import {
   FileJson,
   Gauge,
   GitBranch,
+  Globe,
   Network,
   ScanSearch,
+  ServerCog,
   ShieldCheck,
   Waypoints,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-type Tone = "blue" | "cyan" | "green" | "amber" | "red";
+type Tone = "blue" | "cyan" | "green" | "amber" | "red" | "violet";
 
-const toneStyles: Record<Tone, { icon: string; border: string; dot: string }> = {
-  blue: { icon: "text-blue-400", border: "border-blue-400/25", dot: "bg-blue-400" },
-  cyan: { icon: "text-cyan-400", border: "border-cyan-400/25", dot: "bg-cyan-400" },
-  green: { icon: "text-emerald-400", border: "border-emerald-400/25", dot: "bg-emerald-400" },
-  amber: { icon: "text-amber-400", border: "border-amber-400/25", dot: "bg-amber-400" },
-  red: { icon: "text-rose-400", border: "border-rose-400/25", dot: "bg-rose-400" },
+const tones: Record<Tone, { text: string; border: string; icon: string; glow: string; dot: string }> = {
+  blue: { text: "text-blue-300", border: "border-blue-400/30", icon: "bg-blue-400/10", glow: "shadow-blue-500/10", dot: "bg-blue-300" },
+  cyan: { text: "text-cyan-300", border: "border-cyan-400/30", icon: "bg-cyan-400/10", glow: "shadow-cyan-500/10", dot: "bg-cyan-300" },
+  green: { text: "text-emerald-300", border: "border-emerald-400/30", icon: "bg-emerald-400/10", glow: "shadow-emerald-500/10", dot: "bg-emerald-300" },
+  amber: { text: "text-amber-300", border: "border-amber-400/30", icon: "bg-amber-400/10", glow: "shadow-amber-500/10", dot: "bg-amber-300" },
+  red: { text: "text-rose-300", border: "border-rose-400/30", icon: "bg-rose-400/10", glow: "shadow-rose-500/10", dot: "bg-rose-300" },
+  violet: { text: "text-violet-300", border: "border-violet-400/30", icon: "bg-violet-400/10", glow: "shadow-violet-500/10", dot: "bg-violet-300" },
 };
 
-function FlowNode({
-  icon: Icon,
-  title,
-  detail,
-  tone = "blue",
-  className = "",
-  index = 0,
-}: {
+type NodeData = {
   icon: LucideIcon;
   title: string;
   detail: string;
-  tone?: Tone;
-  className?: string;
-  index?: number;
-}) {
+  tone: Tone;
+  x: number;
+  y: number;
+  w?: number;
+  emphasis?: boolean;
+};
+
+function TopologyNode({ node, index = 0 }: { node: NodeData; index?: number }) {
   const reduceMotion = useReducedMotion();
-  const styles = toneStyles[tone];
+  const style = tones[node.tone];
 
   return (
     <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-30px" }}
-      transition={{ delay: index * 0.05, duration: 0.35 }}
-      className={`relative flex min-w-0 items-center gap-3 rounded-[6px] border bg-[#0c0f13] p-3.5 ${styles.border} ${className}`}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true, margin: "-20px" }}
+      transition={{ delay: index * 0.035, duration: 0.3 }}
+      className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-[6px] border bg-[#0b0e12]/95 px-3 py-2.5 shadow-lg backdrop-blur-sm ${style.border} ${style.glow} ${node.emphasis ? "ring-1 ring-white/[0.08]" : ""}`}
+      style={{ left: `${node.x}%`, top: `${node.y}%`, width: `${node.w ?? 19}%` }}
     >
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] border bg-white/[0.025] ${styles.border}`}>
-        <Icon className={`h-3.5 w-3.5 ${styles.icon}`} />
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border ${style.border} ${style.icon}`}>
+        <node.icon className={`h-3.5 w-3.5 ${style.text}`} />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[11px] font-semibold text-zinc-100">{title}</span>
-        <span className={`mt-0.5 block truncate font-mono text-[8px] ${styles.icon}`}>{detail}</span>
+        <span className="block truncate text-[9px] font-semibold leading-4 text-zinc-100">{node.title}</span>
+        <span className={`block truncate font-mono text-[6.5px] leading-3 ${style.text}`}>{node.detail}</span>
       </span>
-      <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
+      <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />
     </motion.div>
   );
 }
 
-function PanelHeader({ title, status }: { title: string; status: string }) {
+function PathLayer({
+  paths,
+  viewBox,
+  active = [],
+}: {
+  paths: string[];
+  viewBox: string;
+  active?: number[];
+}) {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.018] px-4 py-3 font-mono text-[8px] uppercase tracking-[0.16em] text-zinc-500 sm:px-5">
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={viewBox} fill="none" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <filter id="path-glow">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {paths.map((path, index) => {
+        const highlighted = active.includes(index);
+        return (
+          <g key={`${path}-${index}`}>
+            <path d={path} stroke={highlighted ? "rgba(34,211,238,.32)" : "rgba(96,165,250,.14)"} strokeWidth={highlighted ? "1.4" : "1"} />
+            {highlighted && !reduceMotion && (
+              <motion.path
+                d={path}
+                stroke={index % 3 === 0 ? "#f59e0b" : "#22d3ee"}
+                strokeWidth="1.4"
+                strokeDasharray="4 16"
+                filter="url(#path-glow)"
+                initial={{ strokeDashoffset: 40 }}
+                animate={{ strokeDashoffset: 0 }}
+                transition={{ duration: 2.1, repeat: Infinity, ease: "linear", delay: index * 0.08 }}
+              />
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function PanelChrome({ title, state, replicas }: { title: string; state: string; replicas: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.018] px-4 py-3 font-mono text-[7px] uppercase tracking-[0.17em] text-zinc-600 sm:px-5">
       <span>{title}</span>
-      <span className="flex items-center gap-2 text-emerald-400">
-        <Activity className="h-3 w-3" /> {status}
+      <span className="flex items-center gap-3">
+        <span className="hidden sm:inline">replicas: {replicas}</span>
+        <span className="flex items-center gap-1.5 text-emerald-400"><Activity className="h-2.5 w-2.5" /> {state}</span>
       </span>
     </div>
   );
 }
 
-function SignalLine({
-  className,
-  delay = 0,
-  vertical = false,
-}: {
-  className?: string;
-  delay?: number;
-  vertical?: boolean;
-}) {
-  const reduceMotion = useReducedMotion();
-  return (
-    <span className={`absolute overflow-hidden bg-white/[0.1] ${vertical ? "w-px" : "h-px"} ${className ?? ""}`} aria-hidden="true">
-      <motion.span
-        className={`absolute bg-cyan-400 ${vertical ? "h-5 w-px" : "h-px w-5"}`}
-        animate={reduceMotion ? undefined : vertical ? { y: ["-100%", "650%"] } : { x: ["-100%", "650%"] }}
-        transition={{ duration: 2.2, delay, repeat: Infinity, ease: "linear" }}
-      />
-    </span>
-  );
-}
+const heroNodes: NodeData[] = [
+  { icon: Globe, title: "Kubernetes pods", detail: "replicas 3 / 12", tone: "blue", x: 50, y: 10, w: 52, emphasis: true },
+  { icon: FileJson, title: "stdout log stream", detail: "rate 1.2k events/sec", tone: "cyan", x: 50, y: 27, w: 40 },
+  { icon: Waypoints, title: "LogStrata engine", detail: "analysis active", tone: "violet", x: 50, y: 44, w: 52, emphasis: true },
+  { icon: Gauge, title: "Metrics engine", detail: "p99 latency 82ms", tone: "amber", x: 25, y: 62, w: 38 },
+  { icon: ShieldCheck, title: "Security analytics", detail: "0 active threats", tone: "red", x: 75, y: 62, w: 38 },
+  { icon: GitBranch, title: "Bounded autoscaler", detail: "target replicas 9", tone: "green", x: 50, y: 79, w: 52, emphasis: true },
+  { icon: Check, title: "Cluster scaling", detail: "state synced", tone: "green", x: 50, y: 94, w: 52, emphasis: true },
+];
 
-function CompactFlow() {
-  return (
-    <div className="relative overflow-hidden rounded-[10px] border border-white/[0.09] bg-[#090b0e] text-white shadow-[0_24px_90px_rgba(0,0,0,0.3)]">
-      <PanelHeader title="Runtime decision flow" status="signals live" />
-      <div className="relative mx-auto max-w-[540px] px-4 py-6 sm:px-8 sm:py-8">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:32px_32px]" />
+const heroPaths = [
+  "M300 70 L300 125",
+  "M300 175 L300 230",
+  "M300 280 C300 315 150 300 150 350",
+  "M300 280 C300 315 450 300 450 350",
+  "M150 390 C150 425 300 410 300 445",
+  "M450 390 C450 425 300 410 300 445",
+  "M300 485 L300 525",
+  "M300 550 C65 550 55 90 145 75",
+];
 
-        <div className="relative mx-auto max-w-[340px]">
-          <FlowNode icon={Box} title="Kubernetes workloads" detail="replicas 3 / 12" tone="blue" />
-          <SignalLine vertical className="left-1/2 top-full h-4" />
-        </div>
-        <div className="relative mx-auto mt-4 max-w-[280px]">
-          <FlowNode icon={FileJson} title="stdout event stream" detail="1.2k structured events/s" tone="cyan" index={1} />
-          <SignalLine vertical className="left-1/2 top-full h-4" delay={0.25} />
-        </div>
-        <div className="relative mx-auto mt-4 max-w-[340px]">
-          <FlowNode icon={Waypoints} title="LogStrata signal engine" detail="normalizing + correlating" tone="blue" index={2} />
-          <span className="absolute left-1/2 top-full h-4 w-px bg-white/[0.1]" />
-          <span className="absolute left-[25%] top-[calc(100%+16px)] h-px w-1/2 bg-white/[0.1]" />
-          <span className="absolute left-[25%] top-[calc(100%+16px)] h-4 w-px bg-white/[0.1]" />
-          <span className="absolute right-[25%] top-[calc(100%+16px)] h-4 w-px bg-white/[0.1]" />
-        </div>
-        <div className="relative mt-8 grid grid-cols-2 gap-3">
-          <FlowNode icon={Gauge} title="Performance" detail="p99 82ms" tone="amber" index={3} />
-          <FlowNode icon={ShieldCheck} title="Security" detail="risk nominal" tone="red" index={4} />
-          <span className="absolute bottom-[-16px] left-[25%] h-4 w-px bg-white/[0.1]" />
-          <span className="absolute bottom-[-16px] right-[25%] h-4 w-px bg-white/[0.1]" />
-          <span className="absolute bottom-[-16px] left-[25%] h-px w-1/2 bg-white/[0.1]" />
-        </div>
-        <div className="relative mx-auto mt-4 max-w-[340px]">
-          <SignalLine vertical className="bottom-full left-1/2 h-4" delay={0.6} />
-          <FlowNode icon={GitBranch} title="Bounded policy decision" detail="target replicas = 9" tone="green" index={5} />
-          <SignalLine vertical className="left-1/2 top-full h-4" delay={0.9} />
-        </div>
-        <div className="mx-auto mt-4 max-w-[340px]">
-          <FlowNode icon={Check} title="Cluster state reconciled" detail="HPA + ingress synced" tone="green" index={6} />
-        </div>
+function HeroTopology() {
+  return (
+    <div className="relative overflow-hidden rounded-[10px] border border-white/[0.09] bg-[#080a0d] text-white shadow-[0_30px_100px_rgba(0,0,0,.35)]">
+      <PanelChrome title="Loop // runtime decision graph" state="analysis active" replicas="3/12" />
+      <div className="relative aspect-[1.05/1] min-h-[500px]">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:28px_28px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute left-5 top-5 font-mono text-[6px] uppercase tracking-[.18em] text-zinc-700">signal path / closed loop</div>
+        <PathLayer paths={heroPaths} viewBox="0 0 600 580" active={[0, 1, 2, 4, 6, 7]} />
+        {heroNodes.map((node, index) => <TopologyNode key={node.title} node={node} index={index} />)}
       </div>
-      <div className="grid grid-cols-3 gap-px border-t border-white/[0.08] bg-white/[0.08]">
-        {[["42/s", "log rate"], ["82ms", "decision"], ["3 → 9", "replicas"]].map(([value, label]) => (
-          <div key={label} className="bg-[#0b0d10] px-4 py-3">
-            <p className="font-mono text-[10px] text-zinc-200">{value}</p>
-            <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.14em] text-zinc-600">{label}</p>
-          </div>
-        ))}
-      </div>
+      <MetricStrip compact />
     </div>
   );
 }
 
-const topologyNodes = [
-  { icon: Network, title: "Ingress", detail: "1.2k req/s", tone: "cyan" as Tone },
-  { icon: Box, title: "API service", detail: "6 replicas", tone: "blue" as Tone },
-  { icon: Database, title: "PostgreSQL", detail: "primary healthy", tone: "green" as Tone },
-  { icon: FileJson, title: "Container logs", detail: "CRI + JSON", tone: "cyan" as Tone },
-  { icon: Braces, title: "Pattern extract", detail: "rules + JIT", tone: "amber" as Tone },
-  { icon: Gauge, title: "Latency detect", detail: "p95 + p99", tone: "amber" as Tone },
-  { icon: ScanSearch, title: "Threat detect", detail: "WAF signals", tone: "red" as Tone },
-  { icon: GitBranch, title: "Decision engine", detail: "bounded policy", tone: "blue" as Tone },
-  { icon: Cpu, title: "Kube API patch", detail: "replicas 3 → 9", tone: "green" as Tone },
+const architectureNodes: NodeData[] = [
+  { icon: Globe, title: "Frontend service", detail: "health 100% · 3 pods", tone: "blue", x: 11, y: 17, w: 17 },
+  { icon: ServerCog, title: "API service", detail: "health 100% · 6 pods", tone: "blue", x: 29, y: 22, w: 17 },
+  { icon: Cpu, title: "Worker service", detail: "health 100% · 5 pods", tone: "blue", x: 11, y: 38, w: 17 },
+  { icon: Database, title: "PostgreSQL", detail: "primary · 42 conns", tone: "green", x: 29, y: 43, w: 17, emphasis: true },
+  { icon: FileJson, title: "Container logs", detail: "42 events/s", tone: "cyan", x: 50, y: 15, w: 16 },
+  { icon: Network, title: "Ingress logs", detail: "1.2k events/s", tone: "cyan", x: 69, y: 19, w: 16 },
+  { icon: ShieldCheck, title: "Security events", detail: "8 events/s", tone: "red", x: 51, y: 32, w: 16 },
+  { icon: Braces, title: "Application logs", detail: "188 events/s", tone: "cyan", x: 70, y: 36, w: 16 },
+  { icon: ScanSearch, title: "Pattern extract", detail: "regex + JIT", tone: "amber", x: 49, y: 51, w: 16 },
+  { icon: Gauge, title: "Latency detect", detail: "p95 + p99 limits", tone: "amber", x: 67, y: 52, w: 16, emphasis: true },
+  { icon: Zap, title: "Error detect", detail: "5xx rate spikes", tone: "red", x: 85, y: 48, w: 16 },
+  { icon: Activity, title: "Anomaly detect", detail: "ML baseline drift", tone: "red", x: 55, y: 67, w: 16 },
+  { icon: ShieldCheck, title: "Threat detect", detail: "CVE + WAF shield", tone: "red", x: 75, y: 66, w: 16 },
+  { icon: GitBranch, title: "Decision engine", detail: "evaluate bounded rules", tone: "violet", x: 25, y: 79, w: 25, emphasis: true },
+  { icon: Waypoints, title: "Autoscaler / HPA patch", detail: "scale factor 3.0x", tone: "green", x: 62, y: 79, w: 25, emphasis: true },
+  { icon: Box, title: "Kubernetes API server", detail: "202 accepted", tone: "blue", x: 31, y: 93, w: 25 },
+  { icon: Check, title: "Replica state feedback", detail: "system healthy", tone: "green", x: 70, y: 93, w: 25, emphasis: true },
 ];
 
-function DetailedTopology() {
-  const reduceMotion = useReducedMotion();
-  const paths = [
-    "M105 95 C170 95 160 205 270 205",
-    "M105 205 C175 205 175 205 270 205",
-    "M105 315 C180 315 175 205 270 205",
-    "M370 205 C430 205 420 95 510 95",
-    "M370 205 C430 205 430 205 510 205",
-    "M370 205 C430 205 420 315 510 315",
-    "M610 95 C680 95 670 205 765 205",
-    "M610 205 C675 205 680 205 765 205",
-    "M610 315 C680 315 680 205 765 205",
-    "M815 250 C815 325 815 345 815 405",
-    "M765 450 C650 450 625 450 510 450",
-    "M460 450 C300 450 225 410 105 345",
-  ];
+const architecturePaths = [
+  "M110 110 C250 80 350 80 500 95", "M290 140 C370 120 410 110 500 95",
+  "M110 235 C250 225 350 120 500 95", "M290 265 C360 240 410 120 500 95",
+  "M110 110 C300 130 410 200 510 200", "M290 140 C390 145 450 180 510 200",
+  "M290 265 C380 260 430 230 510 200", "M500 95 C580 100 610 115 690 120",
+  "M500 95 C560 160 630 180 700 225", "M510 200 C570 230 630 225 700 225",
+  "M690 120 C700 200 660 250 670 315", "M700 225 C760 235 810 250 850 290",
+  "M500 95 C470 220 470 250 490 310", "M510 200 C520 250 510 275 490 310",
+  "M490 310 C530 325 610 320 670 315", "M670 315 C730 300 790 290 850 290",
+  "M490 310 C505 350 525 380 550 405", "M670 315 C650 350 610 380 550 405",
+  "M850 290 C820 360 770 390 750 400", "M550 405 C500 440 350 455 250 480",
+  "M750 400 C690 450 670 460 620 480", "M250 480 C350 500 470 480 620 480",
+  "M250 480 C250 530 280 545 310 565", "M620 480 C610 530 480 545 310 565",
+  "M310 565 C430 565 560 565 700 565", "M700 565 C930 560 945 80 820 70",
+];
 
+function Zone({ label, className }: { label: string; className: string }) {
   return (
-    <div className="overflow-hidden rounded-[10px] border border-white/[0.09] bg-[#090b0e] text-white shadow-[0_24px_90px_rgba(0,0,0,0.25)]">
-      <PanelHeader title="System topology / closed-loop control" status="healthy" />
+    <div className={`pointer-events-none absolute rounded-[7px] border border-dashed border-white/[0.075] ${className}`}>
+      <span className="absolute left-2 top-2 font-mono text-[5.5px] uppercase tracking-[.18em] text-zinc-700">{label}</span>
+    </div>
+  );
+}
+
+function DetailedTopology() {
+  return (
+    <div className="overflow-hidden rounded-[10px] border border-white/[0.09] bg-[#080a0d] text-white shadow-[0_30px_100px_rgba(0,0,0,.3)]">
+      <PanelChrome title="Sys topology loop // latency spike detected" state="control active" replicas="9/12" />
       <div className="custom-scrollbar overflow-x-auto">
-        <div className="relative mx-auto min-h-[570px] min-w-[920px] px-8 py-7">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.022)_1px,transparent_1px)] bg-[size:32px_32px]" />
-          <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 920 570" fill="none" aria-hidden="true">
-            {paths.map((path, index) => (
-              <g key={path}>
-                <path d={path} stroke="rgba(96,165,250,0.18)" strokeWidth="1" />
-                {!reduceMotion && (
-                  <motion.path
-                    d={path}
-                    stroke={index > 8 ? "rgba(52,211,153,0.75)" : "rgba(34,211,238,0.7)"}
-                    strokeWidth="1.2"
-                    strokeDasharray="5 18"
-                    initial={{ strokeDashoffset: 46 }}
-                    animate={{ strokeDashoffset: 0 }}
-                    transition={{ duration: 2.8, repeat: Infinity, ease: "linear", delay: index * 0.08 }}
-                  />
-                )}
-              </g>
-            ))}
-          </svg>
-
-          <div className="relative grid grid-cols-3 gap-x-20">
-            {["Workload surface", "Signal analysis", "Control output"].map((label) => (
-              <p key={label} className="border-t border-dashed border-white/[0.1] pt-2 font-mono text-[7px] uppercase tracking-[0.16em] text-zinc-600">{label}</p>
-            ))}
-          </div>
-          <div className="relative mt-5 grid grid-cols-3 gap-x-20">
-            {[0, 3, 7].map((start, column) => (
-              <div key={start} className="space-y-5">
-                {topologyNodes.slice(start, column === 0 ? 3 : column === 1 ? 7 : 9).map((node, index) => (
-                  <FlowNode key={node.title} {...node} index={start + index} />
-                ))}
-              </div>
-            ))}
-          </div>
-
-          <div className="relative mt-7 grid grid-cols-4 gap-px overflow-hidden rounded-[6px] border border-white/[0.08] bg-white/[0.08]">
-            {[
-              ["18.2k", "events ingested"],
-              ["0.84s", "autoscale sync"],
-              ["38.6 GB/s", "parse ceiling"],
-              ["0", "active threats"],
-            ].map(([value, label], index) => (
-              <div key={label} className="bg-[#0b0d10] px-4 py-3">
-                <p className="font-mono text-sm font-semibold text-zinc-100">{value}</p>
-                <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.14em] text-zinc-600">{label}</p>
-                <svg className="mt-3 h-4 w-full" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
-                  <motion.path
-                    d={index === 3 ? "M0 12 L25 12 L50 11 L75 12 L100 11" : "M0 13 L12 5 L25 12 L38 7 L50 14 L63 4 L75 11 L88 6 L100 10"}
-                    fill="none"
-                    stroke={index === 3 ? "#34d399" : "#22d3ee"}
-                    strokeWidth="1"
-                    initial={reduceMotion ? false : { pathLength: 0 }}
-                    whileInView={{ pathLength: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1.2, delay: index * 0.1 }}
-                  />
-                </svg>
-              </div>
-            ))}
-          </div>
+        <div className="relative min-h-[690px] min-w-[1080px]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.022)_1px,transparent_1px)] bg-[size:28px_28px]" />
+          <Zone label="Cluster // workload surface" className="left-[3%] top-[7%] h-[44%] w-[35%]" />
+          <Zone label="Telemetry // ingestion + analysis edge" className="left-[40%] top-[7%] h-[66%] w-[56%]" />
+          <Zone label="Control plane // autoscale engine" className="bottom-[3%] left-[3%] h-[24%] w-[93%]" />
+          <PathLayer paths={architecturePaths} viewBox="0 0 1080 690" active={[0, 7, 10, 15, 17, 19, 21, 23, 24, 25]} />
+          {architectureNodes.map((node, index) => <TopologyNode key={node.title} node={node} index={index} />)}
         </div>
       </div>
+      <MetricStrip />
+    </div>
+  );
+}
+
+function MetricStrip({ compact = false }: { compact?: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const metrics = compact
+    ? [["1.2k/s", "log ingestion"], ["0.82s", "autoscale sync"], ["0", "active threats"]]
+    : [["18.24k", "log ingestion"], ["0.82s", "autoscale sync"], ["38.6 GB/s", "regex parse speed"], ["0", "threat mitigation"]];
+
+  return (
+    <div className={`grid gap-px border-t border-white/[0.08] bg-white/[0.08] ${compact ? "grid-cols-3" : "grid-cols-4"}`}>
+      {metrics.map(([value, label], index) => (
+        <div key={label} className="min-w-0 bg-[#0a0d11] px-3 py-3 sm:px-4">
+          <p className="truncate font-mono text-[10px] font-semibold text-zinc-200 sm:text-xs">{value}</p>
+          <p className="mt-1 truncate font-mono text-[5.5px] uppercase tracking-[.13em] text-zinc-600 sm:text-[6px]">{label}</p>
+          <svg className="mt-2 h-3 w-full" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+            <motion.path
+              d={index === metrics.length - 1 ? "M0 9 L25 9 L50 8 L75 9 L100 8" : "M0 10 L8 3 L16 9 L24 4 L32 11 L40 2 L48 8 L56 4 L64 10 L72 3 L80 9 L90 4 L100 7"}
+              fill="none"
+              stroke={index === metrics.length - 1 ? "#34d399" : "#22d3ee"}
+              strokeWidth="1"
+              initial={reduceMotion ? false : { pathLength: 0 }}
+              whileInView={{ pathLength: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.1, delay: index * 0.08 }}
+            />
+          </svg>
+        </div>
+      ))}
     </div>
   );
 }
 
 export function AnimatedControlLoop({ compact = false }: { compact?: boolean }) {
-  return compact ? <CompactFlow /> : <DetailedTopology />;
+  return compact ? <HeroTopology /> : <DetailedTopology />;
 }
