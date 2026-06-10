@@ -14,21 +14,20 @@ export function AnimatedControlLoop({ compact = false }: { compact?: boolean }) 
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-hairline bg-[#080b11] p-5 text-white shadow-2xl">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(0,112,243,0.16),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(80,227,194,0.12),transparent_35%)]" />
-      <div className="relative flex items-center justify-between border-b border-white/10 pb-4 font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">
+    <div className="relative overflow-hidden rounded-[10px] border border-white/[0.09] bg-[#0b0d10] text-white shadow-[0_20px_80px_rgba(0,0,0,0.28)]">
+      <div className="relative flex items-center justify-between border-b border-white/[0.08] bg-white/[0.018] px-5 py-3 font-mono text-[9px] uppercase tracking-[0.18em] text-zinc-500">
         <span>Control loop topology</span>
         <span className="flex items-center gap-2 text-emerald-400"><Activity className="h-3 w-3" /> live</span>
       </div>
 
-      <div className={`relative mt-5 grid gap-3 ${compact ? "grid-cols-2" : "md:grid-cols-4"}`}>
+      <div className={`relative grid gap-px bg-white/[0.07] ${compact ? "grid-cols-2" : "md:grid-cols-4"}`}>
         {nodes.map(({ label, detail, icon: Icon, color }, index) => (
           <motion.div
             key={label}
             initial={reduceMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.35 }}
-            className="relative rounded-xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur"
+            className="relative bg-[#0b0d10] p-5"
           >
             <Icon className={`h-4 w-4 ${color}`} />
             <p className="mt-5 text-xs font-semibold">{label}</p>
@@ -36,7 +35,7 @@ export function AnimatedControlLoop({ compact = false }: { compact?: boolean }) 
             {index < nodes.length - 1 && !compact && (
               <motion.span
                 aria-hidden="true"
-                className="absolute -right-3 top-1/2 z-10 hidden h-px w-3 bg-blue-400 md:block"
+                className="absolute -right-px top-1/2 z-10 hidden h-px w-px bg-blue-400 md:block"
                 animate={reduceMotion ? undefined : { opacity: [0.25, 1, 0.25] }}
                 transition={{ duration: 2, repeat: Infinity, delay: index * 0.25 }}
               />
@@ -45,7 +44,7 @@ export function AnimatedControlLoop({ compact = false }: { compact?: boolean }) 
         ))}
       </div>
 
-      <div className="relative mt-4 rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-[9px] text-zinc-500">
+      <div className="relative border-t border-white/[0.08] bg-black/20 px-5 py-4 font-mono text-[9px] text-zinc-500">
         <motion.div
           animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55] }}
           transition={{ duration: 2.4, repeat: Infinity }}

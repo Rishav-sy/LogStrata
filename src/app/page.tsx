@@ -40,26 +40,26 @@ const faq = [
 export default function Home() {
   return (
     <>
-      <section className="relative overflow-hidden border-b border-hairline px-6 py-24 sm:py-32">
+      <section className="relative overflow-hidden border-b border-hairline bg-[linear-gradient(to_bottom,var(--color-canvas),var(--color-canvas-soft))] px-5 py-24 sm:px-6 sm:py-32 lg:py-36">
         <AnimatedBackdrop />
-        <div className="relative mx-auto grid max-w-[1400px] gap-14 lg:grid-cols-12 lg:items-center">
+        <div className="relative mx-auto grid max-w-[1280px] gap-16 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-5">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-hairline bg-canvas-soft/80 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-body backdrop-blur">
+            <div className="mb-7 inline-flex items-center gap-2 border-l border-link pl-3 font-mono text-[9px] uppercase tracking-[0.18em] text-mute">
               <span className="h-1.5 w-1.5 rounded-full bg-success" /> Dynamic autoscaling + defense
             </div>
-            <h1 className="text-5xl font-semibold leading-[1.02] tracking-[-0.055em] text-ink sm:text-6xl">
+            <h1 className="max-w-2xl text-5xl font-semibold leading-[0.98] tracking-[-0.06em] text-ink sm:text-6xl lg:text-[68px]">
               Kubernetes control from the signals your app already emits.
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-body">
+            <p className="mt-7 max-w-xl text-base leading-7 text-body sm:text-[17px]">
               LogStrata interprets container logs in real time, adapts replica bounds, and coordinates ingress defense before workloads saturate.
             </p>
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-              <Link href="/dashboard" className="stark-btn-primary h-12 gap-2 px-6">Open live playground <ArrowRight className="h-4 w-4" /></Link>
-              <Link href="/docs/getting-started" className="stark-btn-secondary h-12 px-6">Read technical docs</Link>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href="/dashboard" className="stark-btn-primary h-10 gap-2 rounded-[5px] px-4 text-xs">Open live playground <ArrowRight className="h-3.5 w-3.5" /></Link>
+              <Link href="/docs/getting-started" className="inline-flex h-10 items-center justify-center px-3 text-xs font-medium text-body transition hover:text-ink">Read technical docs <ArrowRight className="ml-2 h-3.5 w-3.5" /></Link>
             </div>
-            <div className="mt-10 grid grid-cols-3 gap-3 border-t border-hairline pt-6">
+            <div className="mt-12 grid grid-cols-3 gap-px border-y border-hairline bg-hairline">
               {[["< 50ms", "decision loop"], ["5", "provider types"], ["Public", "simulation lab"]].map(([value, label]) => (
-                <div key={label}><p className="font-mono text-sm font-bold">{value}</p><p className="mt-1 text-[10px] uppercase tracking-wider text-mute">{label}</p></div>
+                <div key={label} className="bg-canvas py-4 pr-3"><p className="font-mono text-xs font-semibold text-ink">{value}</p><p className="mt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-mute">{label}</p></div>
               ))}
             </div>
           </div>
@@ -67,57 +67,57 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" className="border-b border-hairline bg-canvas-soft px-6 py-24">
-        <div className="mx-auto max-w-[1400px]">
+      <section id="features" className="border-b border-hairline bg-canvas px-5 py-24 sm:px-6 lg:py-28">
+        <div className="mx-auto max-w-[1280px]">
           <SectionHeading eyebrow="02 / Product system" title="React before infrastructure metrics catch up." text="One operational layer correlates performance, security, and scaling signals." />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-px overflow-hidden rounded-[10px] border border-hairline bg-hairline md:grid-cols-2 lg:grid-cols-3">
             {features.map(({ icon: Icon, title, text, meta }) => (
-              <article key={title} className="group rounded-2xl border border-hairline bg-canvas p-6 transition hover:-translate-y-1 hover:border-hairline-strong hover:shadow-xl">
-                <div className="flex items-center justify-between"><Icon className="h-5 w-5 text-link" /><span className="font-mono text-[9px] uppercase tracking-widest text-mute">{meta}</span></div>
-                <h3 className="mt-8 text-lg font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-body">{text}</p>
+              <article key={title} className="group bg-canvas p-6 transition-colors hover:bg-canvas-soft sm:p-7">
+                <div className="flex items-center justify-between"><Icon className="h-4 w-4 text-link" /><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-mute">{meta}</span></div>
+                <h3 className="mt-10 text-[15px] font-semibold tracking-[-0.02em]">{title}</h3><p className="mt-3 text-xs leading-6 text-body">{text}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="architecture" className="border-b border-hairline px-6 py-24">
-        <div className="mx-auto max-w-[1400px]">
+      <section id="architecture" className="border-b border-hairline bg-canvas-soft px-5 py-24 sm:px-6 lg:py-28">
+        <div className="mx-auto max-w-[1280px]">
           <SectionHeading eyebrow="03 / Architecture" title="A bounded, observable control loop." text="Log ingestion feeds independent performance and security analysis before policy actions reach Kubernetes." />
           <AnimatedControlLoop />
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="mt-5 grid gap-px overflow-hidden rounded-[8px] border border-hairline bg-hairline md:grid-cols-4">
             {[[Blocks, "Ingest", "Normalize CRI and JSON streams"], [Activity, "Analyze", "Compute rates, percentiles, anomalies"], [CloudCog, "Decide", "Apply bounded policy logic"], [Cpu, "Act", "Patch replicas and ingress"]].map(([Icon, title, text]) => {
               const StageIcon = Icon as typeof Blocks;
-              return <div key={title as string} className="rounded-xl border border-hairline bg-canvas-soft p-5"><StageIcon className="h-4 w-4 text-link" /><h3 className="mt-4 text-sm font-semibold">{title as string}</h3><p className="mt-2 text-xs leading-5 text-body">{text as string}</p></div>;
+              return <div key={title as string} className="bg-canvas p-5"><StageIcon className="h-3.5 w-3.5 text-link" /><h3 className="mt-5 text-xs font-semibold">{title as string}</h3><p className="mt-2 text-[11px] leading-5 text-body">{text as string}</p></div>;
             })}
           </div>
         </div>
       </section>
 
-      <section className="border-b border-hairline bg-canvas-soft px-6 py-24">
-        <div className="mx-auto max-w-[1400px]">
+      <section className="border-b border-hairline bg-canvas px-5 py-24 sm:px-6 lg:py-28">
+        <div className="mx-auto max-w-[1280px]">
           <SectionHeading eyebrow="04 / Operational scenarios" title="Model the incidents that break ordinary autoscalers." text="The public simulator remains available without an account." />
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-px overflow-hidden rounded-[10px] border border-hairline bg-hairline lg:grid-cols-3">
             {scenarios.map(({ title, status, icon: Icon, tone, text }) => (
-              <article key={title} className="rounded-2xl border border-hairline bg-canvas p-6">
-                <div className="flex items-center justify-between"><Icon className={`h-5 w-5 ${tone}`} /><span className="rounded-full border border-hairline px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-mute">{status}</span></div>
-                <h3 className="mt-8 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-body">{text}</p>
+              <article key={title} className="bg-canvas p-7 transition-colors hover:bg-canvas-soft">
+                <div className="flex items-center justify-between"><Icon className={`h-4 w-4 ${tone}`} /><span className="border-l border-hairline pl-2 font-mono text-[8px] uppercase tracking-[0.12em] text-mute">{status}</span></div>
+                <h3 className="mt-12 text-lg font-semibold tracking-[-0.02em]">{title}</h3><p className="mt-3 text-xs leading-6 text-body">{text}</p>
               </article>
             ))}
           </div>
-          <div className="mt-8 flex justify-center"><Link href="/dashboard" className="stark-btn-primary h-11 gap-2 px-5">Run scenarios <Waypoints className="h-4 w-4" /></Link></div>
+          <div className="mt-8 flex justify-end"><Link href="/dashboard" className="inline-flex h-10 items-center gap-2 text-xs font-medium text-body transition hover:text-ink">Run scenarios <Waypoints className="h-3.5 w-3.5" /></Link></div>
         </div>
       </section>
 
-      <section className="border-b border-hairline px-6 py-24"><CreativePricing tiers={tiers} /></section>
+      <section className="border-b border-hairline bg-canvas-soft px-5 py-24 sm:px-6 lg:py-28"><CreativePricing tiers={tiers} /></section>
       <FaqSectionWithCategories className="border-b border-hairline bg-canvas-soft" title="Technical questions" description="How the v1 product and its public simulator work." items={faq} />
 
-      <section className="px-6 py-24">
-        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-3xl border border-hairline bg-[#080b11] p-10 text-white md:p-16">
-          <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl" />
+      <section className="px-5 py-24 sm:px-6 lg:py-28">
+        <div className="relative mx-auto max-w-[1280px] overflow-hidden rounded-[10px] border border-hairline bg-[#0b0d10] p-8 text-white md:p-12">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
           <div className="relative flex flex-col justify-between gap-8 md:flex-row md:items-end">
-            <div><p className="font-mono text-[10px] uppercase tracking-widest text-blue-400">Workspace ready</p><h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight">Build a repeatable incident-response playground.</h2><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Save simulations, manage cluster foundation records, and prepare integrations without locking the public demo behind authentication.</p></div>
-            <Link href="/signup" className="inline-flex h-11 min-w-fit items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-black">Create workspace <BadgeCheck className="h-4 w-4" /></Link>
+            <div><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-blue-400">Workspace ready</p><h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Build a repeatable incident-response playground.</h2><p className="mt-4 max-w-xl text-xs leading-6 text-zinc-400">Save simulations, manage cluster foundation records, and prepare integrations without locking the public demo behind authentication.</p></div>
+            <Link href="/signup" className="inline-flex h-10 min-w-fit items-center justify-center gap-2 rounded-[5px] bg-white px-4 text-xs font-semibold text-black transition hover:bg-zinc-200">Create workspace <BadgeCheck className="h-3.5 w-3.5" /></Link>
           </div>
         </div>
       </section>
@@ -126,5 +126,5 @@ export default function Home() {
 }
 
 function SectionHeading({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
-  return <div className="mb-14 max-w-2xl"><p className="font-mono text-[10px] font-bold uppercase tracking-widest text-link">{eyebrow}</p><h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2><p className="mt-4 text-sm leading-7 text-body">{text}</p></div>;
+  return <div className="mb-12 grid gap-4 border-t border-hairline pt-5 md:grid-cols-[0.32fr_0.68fr]"><p className="font-mono text-[9px] font-medium uppercase tracking-[0.16em] text-mute">{eyebrow}</p><div><h2 className="max-w-3xl text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">{title}</h2><p className="mt-4 max-w-xl text-xs leading-6 text-body">{text}</p></div></div>;
 }

@@ -6,15 +6,12 @@ export function AnimatedBackdrop() {
   const reduceMotion = useReducedMotion();
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      {[0, 1, 2, 3, 4, 5].map((index) => (
-        <motion.div
-          key={index}
-          className="absolute left-[-20%] h-px w-[140%] bg-gradient-to-r from-transparent via-blue-500/25 to-transparent"
-          style={{ top: `${16 + index * 14}%`, rotate: `${index % 2 ? -4 : 4}deg` }}
-          animate={reduceMotion ? undefined : { x: ["-8%", "8%", "-8%"], opacity: [0.2, 0.55, 0.2] }}
-          transition={{ duration: 12 + index, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(127,127,127,0.055)_1px,transparent_1px),linear-gradient(to_bottom,rgba(127,127,127,0.055)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:linear-gradient(to_bottom,black,transparent_88%)]" />
+      <motion.div
+        className="absolute left-1/2 top-0 h-px w-[70%] -translate-x-1/2 bg-gradient-to-r from-transparent via-blue-500/45 to-transparent"
+        animate={reduceMotion ? undefined : { opacity: [0.35, 0.75, 0.35] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      />
     </div>
   );
 }
