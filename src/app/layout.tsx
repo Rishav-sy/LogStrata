@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Geist } from "next/font/google";
+import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Header } from "@/components/Header";
 import Link from "next/link";
@@ -173,7 +173,11 @@ export default function RootLayout({
                   <span>© 2026 LogStrata Inc. All rights reserved.</span>
                   <span className="hidden sm:inline">•</span>
                   <Link href="/docs/getting-started" className="hover:text-ink transition-colors">
-                    Documentation
+                    Terms
+                  </Link>
+                  <span className="hidden sm:inline">•</span>
+                  <Link href="/docs/getting-started" className="hover:text-ink transition-colors">
+                    Privacy
                   </Link>
                 </div>
               </div>

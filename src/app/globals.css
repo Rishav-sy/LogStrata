@@ -52,7 +52,7 @@ html.dark {
   --color-body: #a1a1a1;
   --color-mute: #666666;
 
-  --color-canvas: #0a0a0a;
+  --color-canvas: #000000;
   --color-canvas-soft: #121212;
   --color-canvas-soft-hover: #1c1c1c;
   --color-canvas-soft-2: #1a1a1a;
@@ -96,6 +96,51 @@ html.dark {
 
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --animate-meteor-effect: meteor 5s linear infinite;
+  @keyframes meteor {
+    0% {
+      transform: rotate(215deg) translateX(0);
+      opacity: 1;
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      transform: rotate(215deg) translateX(-500px);
+      opacity: 0;
+    }
+  }
+
+  --color-gray-900: var(--ds-gray-900);
+  --color-gray-alpha-400: var(--ds-gray-alpha-400);
+  --color-background-100: var(--ds-background-100);
+  --color-background-200: var(--ds-background-200);
+  --color-gray-100: var(--ds-gray-100);
+  --color-gray-1000: var(--ds-gray-1000);
+  --color-blue-100: var(--ds-blue-100);
+  --color-blue-900: var(--ds-blue-900);
+  --color-red-100: var(--ds-red-100);
+  --color-red-900: var(--ds-red-900);
+  --color-amber-100: var(--ds-amber-100);
+  --color-amber-900: var(--ds-amber-900);
+
+  --animate-fade-in: fadeIn 1s ease-out forwards;
+  --animate-fade-out: fadeOut 1s ease-out forwards;
+
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: scale(0.5); }
+    20% { opacity: 1; transform: scale(1); }
+    80% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.5); }
+  }
+
+  @keyframes fadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    20% { opacity: 0; transform: scale(0.5); }
+    80% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+  }
 }
 
 @layer base {
@@ -271,10 +316,16 @@ html.dark {
     height: 0;
     }
   }
+  --animate-border-beam: border-beam var(--duration) linear infinite;
+  @keyframes border-beam {
+    100% {
+      offset-distance: 100%;
+    }
+  }
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -305,4 +356,36 @@ html.dark {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+    :root {
+        --ds-blue-100: oklch(97.32% 0.0141 251.56);
+        --ds-blue-900: oklch(53.18% 0.2399 256.9900584162342);
+        --ds-red-100: oklch(96.5% 0.0223 13.09);
+        --ds-red-900: oklch(54.99% 0.232 25.29);
+        --ds-amber-100: oklch(97.48% 0.0331 85.79);
+        --ds-amber-900: oklch(52.79% 0.1496 54.65);
+        --ds-gray-100: hsla(0, 0%, 95%, 1);
+        --ds-gray-1000: hsla(0, 0%, 9%, 1);
+        --ds-gray-alpha-400: hsla(0, 0%, 0%, 0.08);
+        --ds-background-100: hsla(0, 0%, 100%, 1);
+        --ds-background-200: hsla(0, 0%, 98%, 1);
+        --ds-gray-900: hsla(0, 0%, 15%, 1);
+    }
+
+    .dark {
+        --ds-blue-100: oklch(22.17% 0.069 259.89);
+        --ds-blue-900: oklch(71.7% 0.1648 250.79360374054167);
+        --ds-red-100: oklch(22.1% 0.0657 15.11);
+        --ds-red-900: oklch(69.96% 0.2136 22.03);
+        --ds-amber-100: oklch(22.46% 0.0538 76.04);
+        --ds-amber-900: oklch(77.21% 0.1991 64.28);
+        --ds-gray-100: hsla(0, 0%, 10%, 1);
+        --ds-gray-1000: hsla(0, 0%, 93%, 1);
+        --ds-gray-alpha-400: hsla(0, 0%, 100%, 0.14);
+        --ds-background-100: hsla(0, 0%, 4%, 1);
+        --ds-background-200: hsla(0, 0%, 6%, 1);
+        --ds-gray-900: hsla(0, 0%, 85%, 1);
+    }
 }
