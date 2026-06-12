@@ -56,7 +56,7 @@ graph TD
 ### 1. Clone the repository & Install dependencies
 
 ```bash
-git clone https://github.com/yourusername/LogStrata.git
+git clone https://github.com/Rishav-sy/LogStrata.git
 cd LogStrata
 npm install
 ```
