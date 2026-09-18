@@ -19,6 +19,7 @@
     "@react-three/fiber": "^9.6.1",
     "@supabase/supabase-js": "^2.108.1",
     "@types/three": "^0.184.1",
+    "@xyflow/react": "^12.11.6",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
