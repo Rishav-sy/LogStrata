@@ -1,856 +1,869 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
+import {
+  Play,
+  Pause,
+  Shield,
+  Activity,
+  Terminal,
+  Server,
+  Zap,
+  Radio,
+  Layers,
+} from "lucide-react";
+
+interface NodeDetail {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  role: string;
+  payload: Record<string, unknown> | string;
+}
 
 export function HeroDiagram() {
-  const [heroState, setHeroState] = useState(0);
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // States: 0 = Baseline, 1 = Traffic Spike, 2 = Security Threat, 3 = Scaled Convergence
+  const [heroState, setHeroState] = useState<0 | 1 | 2 | 3>(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
+  // Automatic state cycling when isPlaying is true
   useEffect(() => {
-    const timings = [6000, 4500, 5000];
-    const run = () => {
-      setHeroState((prev) => (prev + 1) % 3);
-    };
-    let timer = setTimeout(function tick() {
-      run();
-      const currentTiming = timings[(heroState + 1) % 3];
-      timer = setTimeout(tick, currentTiming);
-    }, timings[0]);
+    if (!isPlaying) return;
+    const durations = [6000, 5000, 5000, 6000];
+    const timer = setTimeout(() => {
+      setHeroState((prev) => ((prev + 1) % 4) as 0 | 1 | 2 | 3);
+    }, durations[heroState]);
 
     return () => clearTimeout(timer);
-  }, [heroState]);
-
-  // Derived properties based on state
-  const pingColor = heroState === 1 ? "bg-amber-500" : "bg-emerald-500";
-  const stateLabel =
-    heroState === 0
-      ? "LOOP // STABLE"
-      : heroState === 1
-        ? "LOOP // LOAD SPIKE DETECTED"
-        : "LOOP // REPLICAS MUTATED";
-  const syncLabel =
-    heroState === 0
-      ? "REPLICAS: 3/12"
-      : heroState === 1
-        ? "SPIKE TRIGGERED"
-        : "REPLICAS: 9/12";
-
-  const podsReps = heroState === 2 ? "replicas: 9 / 12" : "replicas: 3 / 12";
-  const podsDotColor = heroState === 1 ? "#f59e0b" : "#10b981";
-  const logsRate = heroState === 0 ? "rate: 42 events/sec" : "rate: 1.2K events/sec";
-  const engineStatus =
-    heroState === 0
-      ? "Status: ANALYSIS ACTIVE"
-      : heroState === 1
-        ? "Status: SPIKE PRE-EMPTED"
-        : "Status: CAPACITY ADJUSTED";
-
-  const metricsLatency =
-    heroState === 0
-      ? "Latency: 82ms"
-      : heroState === 1
-        ? "Latency: 480ms (SPIKE)"
-        : "Latency: 120ms (Recovered)";
-  const metricsColor = heroState === 1 ? "#f59e0b" : "#10b981";
-
-  const securityStatus =
-    heroState === 1 ? "1 threat anomaly blocked" : "0 active threats";
-  const securityColor =
-    heroState === 0 ? "#a1a1aa" : heroState === 1 ? "#ef4444" : "#10b981";
-
-  const autoFactor =
-    heroState === 1 ? "Scale ratio: 3.0x (Triggered)" : "Scale ratio: 1.0x (Idle)";
-  const scaleStatus =
-    heroState === 0
-      ? "Status: Synced"
-      : heroState === 1
-        ? "Status: PENDING PROVISION"
-        : "Status: Replicated";
+  }, [heroState, isPlaying]);
 
   const isLight = mounted && resolvedTheme === "light";
 
-  // Flow and color tokens based on state
-  const activeColor =
-    heroState === 0
-      ? "#00f0ff"
-      : heroState === 1
-        ? "#f59e0b"
-        : "#10b981";
+  // State configurations
+  const stateConfigs = [
+    {
+      id: 0,
+      badge: "STABLE BASELINE",
+      color: "emerald",
+      label: "Steady State",
+      sync: "REPLICAS: 3 / 12",
+      logRate: "48 req/s",
+      latency: "82ms",
+      threats: "0 threats",
+      narrative:
+        "Normal traffic volume. Pod stdout streams parsed sub-millisecond via containerd socket. 3 pods serving steady 82ms SLA.",
+      accent: "#10b981",
+    },
+    {
+      id: 1,
+      badge: "INGRESS SURGE DETECTED",
+      color: "amber",
+      label: "Traffic Spike",
+      sync: "SPIKE PRE-EMPTED",
+      logRate: "1.4k req/s",
+      latency: "460ms (RISING)",
+      threats: "0 threats",
+      narrative:
+        "Sudden traffic jump detected in access logs. LogStrata dispatches proactive scale event 18 seconds ahead of CPU threshold lag.",
+      accent: "#f59e0b",
+    },
+    {
+      id: 2,
+      badge: "THREAT ANOMALY DETECTED",
+      color: "rose",
+      label: "DDoS / Brute Force",
+      sync: "INGRESS DEFENSE ACTIVE",
+      logRate: "2.8k req/s",
+      latency: "210ms (MITIGATING)",
+      threats: "1 attacker IP blocked",
+      narrative:
+        "High-velocity 401/403 credential scanning detected. Threat Shield locks scale-down and injects dynamic Ingress firewall drops.",
+      accent: "#f43f5e",
+    },
+    {
+      id: 3,
+      badge: "REPLICAS EXPANDED & RECOVERED",
+      color: "cyan",
+      label: "Capacity Mutated",
+      sync: "REPLICAS: 9 / 12",
+      logRate: "1.4k req/s",
+      latency: "105ms (RESTORED)",
+      threats: "Isolated at Edge",
+      narrative:
+        "Kubernetes deployment successfully scaled to 9 replicas. Cluster latency normalized with zero dropped user requests.",
+      accent: "#06b6d4",
+    },
+  ];
 
-  const flowDuration =
-    heroState === 0
-      ? "6.0s"
-      : heroState === 1
-        ? "2.2s"
-        : "4.0s";
+  const currentConfig = stateConfigs[heroState];
 
-  const nodeGlowColor =
-    heroState === 0
-      ? "rgba(0, 240, 255, 0.08)"
-      : heroState === 1
-        ? "rgba(245, 158, 11, 0.12)"
-        : "rgba(16, 185, 129, 0.1)";
-
-  // Paths
-  const paths = {
-    podsLogs: "M 230 56 L 230 66",
-    logsEngine: "M 230 100 L 230 108",
-    engineMetrics: "M 210 154 C 210 168, 130 158, 130 172",
-    engineSecurity: "M 250 154 C 250 168, 330 158, 330 172",
-    metricsAuto: "M 130 210 C 130 222, 210 214, 210 222",
-    securityAuto: "M 330 210 C 330 222, 250 214, 250 222",
-    autoScale: "M 230 268 L 230 278",
-    feedback: "M 140 315 C 50 315, 22 230, 22 160 C 22 90, 50 20, 140 20"
+  // Inspector node database
+  const nodeDetails: Record<string, NodeDetail> = {
+    pods: {
+      id: "pods",
+      title: "Kubernetes Workload Pods",
+      subtitle: "Deployment: commerce-frontend",
+      badge: heroState === 3 ? "9 Pods Healthy" : "3 Pods Healthy",
+      role: "Application instances streaming stdout directly to host containerd sockets.",
+      payload: {
+        namespace: "production",
+        deployment: "commerce-frontend",
+        currentReplicas: heroState === 3 ? 9 : 3,
+        readyReplicas: heroState === 3 ? 9 : 3,
+        containerRuntime: "containerd://1.7.15",
+      },
+    },
+    logs: {
+      id: "logs",
+      title: "containerd Socket Stream",
+      subtitle: "Socket: /run/containerd/containerd.sock",
+      badge: heroState === 0 ? "48 lines/s" : heroState === 1 ? "1.4k lines/s" : "2.8k lines/s",
+      role: "Zero-network socket tailer reading raw container stdout streams with sub-millisecond overhead.",
+      payload: {
+        source: "/var/log/pods/commerce-frontend-*/*.log",
+        latency: "< 0.4ms",
+        bufferAllocation: "64KB ring-buffer",
+        status: "STREAMING_ACTIVE",
+      },
+    },
+    engine: {
+      id: "engine",
+      title: "LogStrata Control Engine",
+      subtitle: "Sub-ms Stream Parsing Core",
+      badge: "Cycle: 15ms",
+      role: "In-memory token analysis matching regular patterns, status code ratios, and threat signatures.",
+      payload: {
+        evaluationLoop: "15ms",
+        activeModel: "Sliding-Window Transaction Rate (SWTR)",
+        confidenceScore: 0.98,
+        decision:
+          heroState === 1
+            ? "TRIGGER_PRE_EMPTIVE_SCALE_UP"
+            : heroState === 2
+            ? "ENGAGE_THREAT_LOCK_AND_INGRESS_DROP"
+            : "MONITORING_BASELINE",
+      },
+    },
+    metrics: {
+      id: "metrics",
+      title: "Performance Metrics Engine",
+      subtitle: "Latency & RPS Profiler",
+      badge: currentConfig.latency,
+      role: "Computes real-time P95/P99 latency percentiles and transaction density per second.",
+      payload: {
+        currentRPS: heroState === 0 ? 48 : heroState === 1 ? 1420 : 2850,
+        p95Latency: currentConfig.latency,
+        errorRatePercent: heroState === 2 ? "18.4%" : "0.2%",
+        trend: heroState === 1 ? "ACCELERATING" : "STABILIZED",
+      },
+    },
+    security: {
+      id: "security",
+      title: "Threat Shield (SIEM)",
+      subtitle: "Signature & Ingress Analytics",
+      badge: currentConfig.threats,
+      role: "Detects unauthorized brute-force spikes, token scanning, and application-layer DDoS floods.",
+      payload: {
+        threatLevel: heroState === 2 ? "CRITICAL" : "LOW",
+        blockedIPs: heroState === 2 ? ["194.26.29.11", "45.154.255.8"] : [],
+        scaleDownLock: heroState === 2 ? "ENGAGED" : "OFF",
+        mitigationAction: heroState === 2 ? "INGRESS_WAF_REJECT" : "NONE",
+      },
+    },
+    decision: {
+      id: "decision",
+      title: "Autoscaling Decision Controller",
+      subtitle: "Reconciliation Loop",
+      badge: heroState === 1 || heroState === 2 ? "Scale Target: 9" : "Scale Target: 3",
+      role: "Evaluates workload capacity equations and threat profiles to determine target replica bounds.",
+      payload: {
+        algorithm: "Proactive-RPS-Target",
+        desiredReplicas: heroState === 1 || heroState === 2 || heroState === 3 ? 9 : 3,
+        stepRatio: "3.0x",
+        k8sPatchStatus: heroState === 1 ? "DISPATCHED" : "SYNCHRONIZED",
+      },
+    },
+    k8s: {
+      id: "k8s",
+      title: "Kubernetes API Server",
+      subtitle: "Deployment Spec Mutator",
+      badge: "API PATCH",
+      role: "Receives atomic JSON patch requests and orchestrates ReplicaSet pod provisioning.",
+      payload: {
+        endpoint: "PATCH /apis/apps/v1/namespaces/default/deployments/commerce-frontend",
+        appliedPatch: `{"spec":{"replicas":${heroState === 3 ? 9 : 3}}}`,
+        responseTime: "12ms",
+        clusterHealth: "100%",
+      },
+    },
   };
 
-  // Node styles
-  const getNodeBorder = (nodeId: string) => {
-    if (heroState === 0) {
-      if (nodeId === "engine") return "rgba(0, 240, 255, 0.3)";
-    } else if (heroState === 1) {
-      if (nodeId === "logs") return "rgba(0, 240, 255, 0.3)";
-      if (nodeId === "metrics") return "rgba(245, 158, 11, 0.4)";
-      if (nodeId === "security") return "rgba(239, 68, 68, 0.4)";
-      if (nodeId === "auto") return "rgba(245, 158, 11, 0.3)";
-    } else if (heroState === 2) {
-      if (nodeId === "pods" || nodeId === "scale") return "rgba(16, 185, 129, 0.4)";
-    }
-    return isLight ? "#e2e8f0" : "#1e293b";
-  };
-
-  const getNodeFilter = (nodeId: string) => {
-    if (heroState === 0) {
-      if (nodeId === "engine") return "url(#glow-node-cyan)";
-    } else if (heroState === 1) {
-      if (nodeId === "logs") return "url(#glow-node-cyan)";
-      if (nodeId === "metrics") return "url(#glow-node-amber)";
-      if (nodeId === "security") return "url(#glow-node-red)";
-      if (nodeId === "auto") return "url(#glow-node-amber)";
-    } else if (heroState === 2) {
-      if (nodeId === "pods" || nodeId === "scale") return "url(#glow-node-emerald)";
-    }
-    return "none";
-  };
+  const activeNode = selectedNode ? nodeDetails[selectedNode] : null;
 
   return (
-    <div className="hero-dfd relative w-full select-none" id="hero-dfd-root">
-      {/* CSS Stylesheet Injector for smooth fluid animations */}
-      <style>{`
-        .path-base {
-          stroke: ${isLight ? "rgba(15, 23, 42, 0.05)" : "rgba(255, 255, 255, 0.03)"};
-          stroke-width: 1px;
-          fill: none;
-          stroke-linecap: round;
-        }
-
-        .path-flow-glow {
-          stroke-linecap: round;
-          stroke-width: 1.2px;
-          fill: none;
-          filter: url(#glow-blur);
-          stroke-dasharray: 10 90;
-          animation: flow-offset var(--flow-dur, 6.0s) linear infinite;
-        }
-
-        @keyframes flow-offset {
-          to {
-            stroke-dashoffset: -100;
-          }
-        }
-
-        .node-group {
-          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .node-rect {
-          transition: stroke 0.4s ease, fill 0.4s ease, filter 0.4s ease;
-        }
-
-        .icon-spin {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: spin-clockwise 180s linear infinite;
-        }
-
-        .icon-spin-reverse {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: spin-counter 120s linear infinite;
-        }
-
-        .icon-pulse {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: ambient-pulse 4s ease-in-out infinite;
-        }
-
-        @keyframes spin-clockwise {
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes spin-counter {
-          to { transform: rotate(-360deg); }
-        }
-
-        @keyframes ambient-pulse {
-          0%, 100% { opacity: 0.75; transform: scale(1); }
-          50% { opacity: 0.95; transform: scale(1.02); }
-        }
-
-        .pulsing-indicator {
-          animation: indicator-glowing 2s ease-in-out infinite;
-        }
-
-        @keyframes indicator-glowing {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-      `}</style>
-
-      {/* Status bar */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <span
-            className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 transition-colors duration-300"
-            id="hero-state-label"
-          >
-            {stateLabel}
+    <div className="w-full flex flex-col font-sans select-none" id="hero-dfd-root">
+      {/* Control Deck Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-hairline/80">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex h-2.5 w-2.5 items-center justify-center">
+            <span
+              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+              style={{ backgroundColor: currentConfig.accent }}
+            />
+            <span
+              className="relative inline-flex rounded-full h-2 w-2"
+              style={{ backgroundColor: currentConfig.accent }}
+            />
+          </div>
+          <span className="font-mono text-[11px] font-bold tracking-wider uppercase text-ink">
+            {currentConfig.badge}
           </span>
         </div>
-        <div
-          className="font-mono text-[8px] text-zinc-600 transition-colors duration-300"
-          id="hero-state-sync"
-        >
-          {syncLabel}
+
+        {/* State Pills & Pause/Play Controls */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {stateConfigs.map((cfg) => {
+            const isCurrent = heroState === cfg.id;
+            return (
+              <button
+                key={cfg.id}
+                onClick={() => {
+                  setHeroState(cfg.id as 0 | 1 | 2 | 3);
+                  setIsPlaying(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-wider transition-all duration-200 cursor-pointer border ${
+                  isCurrent
+                    ? "bg-ink text-canvas border-ink font-semibold shadow-sm"
+                    : "bg-canvas-soft/60 hover:bg-canvas-soft text-mute hover:text-ink border-hairline"
+                }`}
+              >
+                {cfg.id + 1}. {cfg.label}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            title={isPlaying ? "Pause auto loop" : "Resume auto loop"}
+            className="p-1.5 rounded-lg border border-hairline bg-canvas-soft/60 hover:bg-canvas-soft text-body hover:text-ink transition-colors cursor-pointer ml-1"
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+          </button>
         </div>
       </div>
 
-      {/* SVG Canvas — Widescreen structured layout */}
-      <svg
-        className="w-full h-auto overflow-visible"
-        viewBox="0 0 460 335"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        role="img"
-        aria-label="LogStrata control-loop architecture"
-        id="hero-svg"
-      >
-        <defs>
-          {/* Laser trail glow filter */}
-          <filter id="glow-blur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="1.5" result="blur" />
-            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1.2 0" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
+      {/* Dynamic Narrative Banner */}
+      <div className="mb-4 px-3.5 py-2.5 rounded-xl border border-hairline/80 bg-canvas-soft/70 backdrop-blur-sm flex items-start gap-3 text-xs leading-relaxed">
+        <div className="p-1 rounded-md bg-canvas border border-hairline shrink-0 mt-0.5">
+          <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
+        </div>
+        <div className="flex-1">
+          <span className="text-body font-light">{currentConfig.narrative}</span>
+        </div>
+        <div className="hidden sm:flex items-center gap-3 font-mono text-[10px] text-mute border-l border-hairline/80 pl-3">
+          <div>
+            <span className="text-mute/70">LATENCY:</span>{" "}
+            <span className="font-semibold text-ink">{currentConfig.latency}</span>
+          </div>
+          <div>
+            <span className="text-mute/70">SYNC:</span>{" "}
+            <span className="font-semibold text-ink">{currentConfig.sync}</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Node external glow filters */}
-          <filter id="glow-node-cyan" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="#00f0ff" floodOpacity="0.08" />
-          </filter>
-          <filter id="glow-node-amber" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="#f59e0b" floodOpacity="0.08" />
-          </filter>
-          <filter id="glow-node-emerald" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="#10b981" floodOpacity="0.08" />
-          </filter>
-          <filter id="glow-node-red" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#ef4444" floodOpacity="0.12" />
-          </filter>
+      {/* SVG Interactive Canvas */}
+      <div className="relative w-full rounded-xl bg-canvas/90 border border-hairline/70 p-2 sm:p-4 overflow-hidden">
+        {/* Subtle grid pattern background */}
+        <div
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(${isLight ? "#000" : "#fff"} 1px, transparent 1px)`,
+            backgroundSize: "16px 16px",
+          }}
+        />
 
-          {/* Gradients along the connection curves */}
-          <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#00f0ff" />
-            <stop offset="100%" stopColor="#7928ca" />
-          </linearGradient>
-          <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#ef4444" />
-          </linearGradient>
-          <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#00f0ff" />
-          </linearGradient>
-          <linearGradient id="grad-red" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ef4444" />
-            <stop offset="100%" stopColor="#7928ca" />
-          </linearGradient>
+        <svg
+          className="w-full h-auto overflow-visible"
+          viewBox="0 0 520 380"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="LogStrata Log-Driven Autoscaling Pipeline"
+        >
+          <defs>
+            {/* Laser trail glow filter */}
+            <filter id="laser-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1.8 0" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
 
-          {/* Node body background gradients */}
-          <linearGradient id="node-bg-dark" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#0f1013" />
-            <stop offset="100%" stopColor="#050505" />
-          </linearGradient>
-          <linearGradient id="node-bg-light" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="100%" stopColor="#f8fafc" />
-          </linearGradient>
+            {/* Gradients */}
+            <linearGradient id="stream-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#06b6d4" />
+            </linearGradient>
 
-          {/* Clip paths for nodes */}
-          <clipPath id="hclip-200x46"><rect x="0" y="0" width="200" height="46" /></clipPath>
-          <clipPath id="hclip-150x34"><rect x="0" y="0" width="150" height="34" /></clipPath>
-          <clipPath id="hclip-160x38"><rect x="0" y="0" width="160" height="38" /></clipPath>
-        </defs>
+            <linearGradient id="spike-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#ef4444" />
+            </linearGradient>
 
-        {/* ═══════════ CONNECTOR PATHS ═══════════ */}
-        {(() => {
-          const flowGradient =
-            heroState === 0
-              ? "url(#grad-cyan)"
-              : heroState === 1
-                ? "url(#grad-amber)"
-                : "url(#grad-emerald)";
+            <linearGradient id="threat-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ef4444" />
+              <stop offset="100%" stopColor="#7c3aed" />
+            </linearGradient>
 
-          const styleRules = { "--flow-dur": flowDuration } as React.CSSProperties;
+            <linearGradient id="node-fill-dark" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#14171d" />
+              <stop offset="100%" stopColor="#0c0e12" />
+            </linearGradient>
 
-          return (
-            <g id="connector-lines-group">
-              {/* Pods → Logs */}
-              <path id="cp-pods-logs" d={paths.podsLogs} className="path-base" />
-              <path d={paths.podsLogs} className="path-flow-glow" stroke={flowGradient} style={styleRules} />
+            <linearGradient id="node-fill-light" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#f8fafc" />
+            </linearGradient>
+          </defs>
 
-              {/* Logs → Engine */}
-              <path id="cp-logs-engine" d={paths.logsEngine} className="path-base" />
-              <path d={paths.logsEngine} className="path-flow-glow" stroke={flowGradient} style={styleRules} />
+          {/* PATH CONNECTIONS */}
+          <g id="pipeline-connections">
+            {/* 1. Pods -> containerd socket */}
+            <path
+              d="M 260 52 L 260 76"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+            />
+            <path
+              d="M 260 52 L 260 76"
+              stroke="#3b82f6"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="10 40"
+              filter="url(#laser-glow)"
+              className="flow-dash"
+              style={{
+                animation: `flowAnim ${heroState === 1 ? "1.2s" : "3s"} linear infinite`,
+              }}
+            />
 
-              {/* Engine → Metrics (curved left) */}
-              <path id="cp-engine-metrics" d={paths.engineMetrics} className="path-base" />
-              <path d={paths.engineMetrics} className="path-flow-glow" stroke={flowGradient} style={styleRules} />
+            {/* 2. containerd socket -> LogStrata Engine */}
+            <path
+              d="M 260 114 L 260 138"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+            />
+            <path
+              d="M 260 114 L 260 138"
+              stroke={currentConfig.accent}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="12 40"
+              filter="url(#laser-glow)"
+              className="flow-dash"
+              style={{
+                animation: `flowAnim ${heroState === 1 ? "1.0s" : "2.5s"} linear infinite`,
+              }}
+            />
 
-              {/* Engine → Security (curved right) */}
-              <path id="cp-engine-security" d={paths.engineSecurity} className="path-base" />
+            {/* 3. LogStrata Engine -> Metrics Engine (Left Branch) */}
+            <path
+              d="M 210 184 C 210 206, 140 196, 140 218"
+              fill="none"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 210 184 C 210 206, 140 196, 140 218"
+              fill="none"
+              stroke={heroState === 1 ? "#f59e0b" : "#3b82f6"}
+              strokeWidth="2"
+              strokeDasharray="12 60"
+              filter="url(#laser-glow)"
+              style={{
+                animation: `flowAnim ${heroState === 1 ? "1.2s" : "3.5s"} linear infinite`,
+              }}
+            />
+
+            {/* 4. LogStrata Engine -> Threat Shield (Right Branch) */}
+            <path
+              d="M 310 184 C 310 206, 380 196, 380 218"
+              fill="none"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 310 184 C 310 206, 380 196, 380 218"
+              fill="none"
+              stroke={heroState === 2 ? "#f43f5e" : "#8b5cf6"}
+              strokeWidth="2"
+              strokeDasharray="12 60"
+              filter="url(#laser-glow)"
+              style={{
+                animation: `flowAnim ${heroState === 2 ? "1.0s" : "4.0s"} linear infinite`,
+              }}
+            />
+
+            {/* 5. Metrics -> Decision Controller */}
+            <path
+              d="M 140 262 C 140 282, 220 274, 220 294"
+              fill="none"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 140 262 C 140 282, 220 274, 220 294"
+              fill="none"
+              stroke={currentConfig.accent}
+              strokeWidth="2"
+              strokeDasharray="12 60"
+              filter="url(#laser-glow)"
+              style={{
+                animation: "flowAnim 3s linear infinite",
+              }}
+            />
+
+            {/* 6. Threat Shield -> Decision Controller */}
+            <path
+              d="M 380 262 C 380 282, 300 274, 300 294"
+              fill="none"
+              stroke={isLight ? "#cbd5e1" : "#334155"}
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 380 262 C 380 282, 300 274, 300 294"
+              fill="none"
+              stroke={heroState === 2 ? "#f43f5e" : "#06b6d4"}
+              strokeWidth="2"
+              strokeDasharray="12 60"
+              filter="url(#laser-glow)"
+              style={{
+                animation: "flowAnim 3s linear infinite",
+              }}
+            />
+
+            {/* 7. Feedback scale loop: Decision -> Pods (Left Return Loop) */}
+            <path
+              d="M 170 325 C 50 325, 20 200, 20 120 C 20 40, 60 30, 160 30"
+              fill="none"
+              stroke={isLight ? "#e2e8f0" : "#1e293b"}
+              strokeWidth="1.2"
+              strokeDasharray="4 4"
+            />
+            {heroState === 3 && (
               <path
-                d={paths.engineSecurity}
-                className="path-flow-glow"
-                stroke={heroState === 1 ? "url(#grad-red)" : flowGradient}
-                style={styleRules}
-              />
-
-              {/* Metrics → Auto (curved in) */}
-              <path id="cp-metrics-auto" d={paths.metricsAuto} className="path-base" />
-              <path d={paths.metricsAuto} className="path-flow-glow" stroke={flowGradient} style={styleRules} />
-
-              {/* Security → Auto (curved in) */}
-              <path id="cp-security-auto" d={paths.securityAuto} className="path-base" />
-              <path
-                d={paths.securityAuto}
-                className="path-flow-glow"
-                stroke={heroState === 1 ? "url(#grad-red)" : flowGradient}
-                style={styleRules}
-              />
-
-              {/* Auto → Scale */}
-              <path id="cp-auto-scale" d={paths.autoScale} className="path-base" />
-              <path d={paths.autoScale} className="path-flow-glow" stroke={flowGradient} style={styleRules} />
-
-              {/* Feedback Loop */}
-              <path id="cp-feedback" d={paths.feedback} className="path-base" strokeDasharray="3,5" />
-              <path
-                d={paths.feedback}
-                className="path-flow-glow"
-                stroke={flowGradient}
+                d="M 170 325 C 50 325, 20 200, 20 120 C 20 40, 60 30, 160 30"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="2"
+                strokeDasharray="20 80"
+                filter="url(#laser-glow)"
                 style={{
-                  ...styleRules,
-                  strokeDasharray: "15 120",
-                  animationDuration: heroState === 1 ? "3s" : "8s"
+                  animation: "flowAnim 2.2s linear infinite",
                 }}
               />
-            </g>
-          );
-        })()}
+            )}
+          </g>
 
-        {/* ═══════════ FLOWING GLOWING PARTICLES ═══════════ */}
-        {(() => {
-          const particleColor =
-            heroState === 0
-              ? "#00f0ff"
-              : heroState === 1
-                ? "#f59e0b"
-                : "#10b981";
+          {/* SVG NODES */}
+          {(() => {
+            const nodeFill = isLight ? "url(#node-fill-light)" : "url(#node-fill-dark)";
 
-          const secParticleColor = heroState === 1 ? "#ef4444" : particleColor;
-
-          return (
-            <g id="animated-particles-group">
-              {/* Pods → Logs */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite">
-                  <mpath href="#cp-pods-logs" />
-                </animateMotion>
-              </g>
-
-              {/* Logs → Engine */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.2s">
-                  <mpath href="#cp-logs-engine" />
-                </animateMotion>
-              </g>
-              <g className="particle-glow-group">
-                <circle r="3.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.5" />
-                <circle r="1" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.7s">
-                  <mpath href="#cp-logs-engine" />
-                </animateMotion>
-              </g>
-
-              {/* Engine → Metrics */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.1s">
-                  <mpath href="#cp-engine-metrics" />
-                </animateMotion>
-              </g>
-              <g className="particle-glow-group">
-                <circle r="3.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.5" />
-                <circle r="1" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.6s">
-                  <mpath href="#cp-engine-metrics" />
-                </animateMotion>
-              </g>
-
-              {/* Engine → Security */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={secParticleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.3s">
-                  <mpath href="#cp-engine-security" />
-                </animateMotion>
-              </g>
-              <g className="particle-glow-group">
-                <circle r="3.5" fill={secParticleColor} filter="url(#glow-blur)" opacity="0.5" />
-                <circle r="1" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.8s">
-                  <mpath href="#cp-engine-security" />
-                </animateMotion>
-              </g>
-
-              {/* Metrics → Auto */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.4s">
-                  <mpath href="#cp-metrics-auto" />
-                </animateMotion>
-              </g>
-
-              {/* Security → Auto */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={secParticleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.5s">
-                  <mpath href="#cp-security-auto" />
-                </animateMotion>
-              </g>
-
-              {/* Auto → Scale */}
-              <g className="particle-glow-group">
-                <circle r="4.5" fill={particleColor} filter="url(#glow-blur)" opacity="0.8" />
-                <circle r="1.5" fill="#ffffff" />
-                <animateMotion dur={flowDuration} repeatCount="indefinite" begin="0.2s">
-                  <mpath href="#cp-auto-scale" />
-                </animateMotion>
-              </g>
-
-              {/* Feedback loop */}
-              <g className="particle-glow-group">
-                <circle r="4" fill={particleColor} filter="url(#glow-blur)" opacity="0.4" />
-                <circle r="1" fill="#ffffff" />
-                <animateMotion dur={heroState === 1 ? "4s" : "10s"} repeatCount="indefinite" begin="0.5s">
-                  <mpath href="#cp-feedback" />
-                </animateMotion>
-              </g>
-            </g>
-          );
-        })()}
-
-        {/* ═══════════ SYSTEM NODES ═══════════ */}
-        {(() => {
-          const textX = 44;
-          const textXLogs = 36;
-          const nodeBg = isLight ? "url(#node-bg-light)" : "url(#node-bg-dark)";
-
-          return (
-            <g id="system-nodes-group">
-              {/* 1. Kubernetes Pods */}
-              <g transform="translate(130, 10)" className="node-group cursor-pointer" clipPath="url(#hclip-200x46)">
-                <rect
-                  id="hn-pods"
-                  x="0"
-                  y="0"
-                  width="200"
-                  height="46"
-                  rx="6"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("pods")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("pods"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <g>
+            return (
+              <g id="system-nodes">
+                {/* 1. Kubernetes Workload Pods */}
+                <g
+                  transform="translate(160, 10)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "pods" ? null : "pods")}
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="200"
+                    height="44"
+                    rx="8"
+                    fill={nodeFill}
+                    stroke={
+                      selectedNode === "pods"
+                        ? "#3b82f6"
+                        : heroState === 3
+                        ? "#10b981"
+                        : isLight
+                        ? "#cbd5e1"
+                        : "#1e293b"
+                    }
+                    strokeWidth={selectedNode === "pods" ? "2" : "1"}
+                  />
                   <rect
                     x="8"
-                    y="9"
+                    y="8"
                     width="28"
                     height="28"
                     rx="6"
-                    fill={isLight ? "#eff6ff" : "rgba(59, 130, 246, 0.08)"}
-                    stroke={isLight ? "#bfdbfe" : "rgba(59, 130, 246, 0.2)"}
-                    strokeWidth="1"
+                    fill={isLight ? "#eff6ff" : "rgba(59, 130, 246, 0.12)"}
                   />
-                  <g className="icon-spin" stroke={isLight ? "#2563eb" : "#60a5fa"} strokeWidth="1.25" fill="none">
-                    <circle cx="22" cy="23" r="7" />
-                    <ellipse cx="22" cy="23" rx="2.2" ry="7" />
-                    <line x1="15" y1="23" x2="29" y2="23" />
-                  </g>
+                  <Server x="14" y="14" width="16" height="16" className="text-blue-500" />
+                  <text
+                    x="44"
+                    y="20"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="11"
+                    fontWeight="600"
+                  >
+                    Kubernetes Workload Pods
+                  </text>
+                  <text
+                    x="44"
+                    y="32"
+                    fill={isLight ? "#64748b" : "#94a3b8"}
+                    fontFamily="monospace"
+                    fontSize="8.5"
+                  >
+                    {heroState === 3 ? "Replicas: 9 / 12 (Scaled)" : "Replicas: 3 / 12 (Active)"}
+                  </text>
+                  <circle
+                    cx="186"
+                    cy="22"
+                    r="4"
+                    fill={heroState === 1 ? "#f59e0b" : "#10b981"}
+                    className="animate-pulse"
+                  />
                 </g>
-                <text
-                  x={textX}
-                  y={20}
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  Kubernetes Pods
-                </text>
-                <text
-                  id="hval-pods-reps"
-                  x={textX}
-                  y="32"
-                  fill={isLight ? "#64748b" : "#71717a"}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {podsReps}
-                </text>
-                <circle cx="184" cy="20" r="3.5" fill={podsDotColor} id="hdot-pods" className="pulsing-indicator" />
-              </g>
 
-              {/* 2. stdout logs stream */}
-              <g transform="translate(155, 66)" className="node-group cursor-pointer" clipPath="url(#hclip-150x34)">
-                <rect
-                  id="hn-logs"
-                  x="0"
-                  y="0"
-                  width="150"
-                  height="34"
-                  rx="5"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("logs")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("logs"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <g>
+                {/* 2. containerd stdout stream */}
+                <g
+                  transform="translate(175, 76)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "logs" ? null : "logs")}
+                >
                   <rect
-                    x="6"
-                    y="6"
+                    x="0"
+                    y="0"
+                    width="170"
+                    height="38"
+                    rx="6"
+                    fill={nodeFill}
+                    stroke={selectedNode === "logs" ? "#06b6d4" : isLight ? "#cbd5e1" : "#1e293b"}
+                    strokeWidth={selectedNode === "logs" ? "2" : "1"}
+                  />
+                  <rect
+                    x="8"
+                    y="8"
                     width="22"
                     height="22"
                     rx="4"
-                    fill={isLight ? "#ecfeff" : "rgba(6, 182, 212, 0.08)"}
-                    stroke={isLight ? "#a5f3fc" : "rgba(6, 182, 212, 0.2)"}
-                    strokeWidth="1"
+                    fill={isLight ? "#ecfeff" : "rgba(6, 182, 212, 0.12)"}
                   />
-                  <g className="icon-pulse" stroke={isLight ? "#0891b2" : "#22d3ee"} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none">
-                    <path d="M 13 11 H 19 L 21 13 V 21 H 13 Z" />
-                    <path d="M 19 11 V 13 H 21" />
-                  </g>
+                  <Terminal x="12" y="12" width="14" height="14" className="text-cyan-500" />
+                  <text
+                    x="38"
+                    y="18"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="10"
+                    fontWeight="600"
+                  >
+                    stdout socket stream
+                  </text>
+                  <text
+                    x="38"
+                    y="29"
+                    fill={isLight ? "#64748b" : "#94a3b8"}
+                    fontFamily="monospace"
+                    fontSize="8"
+                  >
+                    rate: {currentConfig.logRate}
+                  </text>
                 </g>
-                <text
-                  x={textXLogs}
-                  y={16}
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="9"
-                  fontWeight="600"
-                >
-                  stdout log stream
-                </text>
-                <text
-                  id="hval-logs-rate"
-                  x={textXLogs}
-                  y={27}
-                  fill={isLight ? "#4f46e5" : "#00f0ff"}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {logsRate}
-                </text>
-              </g>
 
-              {/* 3. LogStrata Engine */}
-              <g transform="translate(130, 108)" className="node-group cursor-pointer" clipPath="url(#hclip-200x46)">
-                <rect
-                  id="hn-engine"
-                  x="0"
-                  y="0"
-                  width="200"
-                  height="46"
-                  rx="6"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("engine")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("engine"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <g>
+                {/* 3. LogStrata Control Engine */}
+                <g
+                  transform="translate(150, 138)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "engine" ? null : "engine")}
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="220"
+                    height="46"
+                    rx="8"
+                    fill={nodeFill}
+                    stroke={
+                      selectedNode === "engine"
+                        ? "#00f0ff"
+                        : currentConfig.accent
+                    }
+                    strokeWidth="1.5"
+                  />
                   <rect
                     x="8"
                     y="9"
                     width="28"
                     height="28"
                     rx="6"
-                    fill={isLight ? "#eef2ff" : "rgba(99, 102, 241, 0.08)"}
-                    stroke={isLight ? "#c7d2fe" : "rgba(99, 102, 241, 0.2)"}
+                    fill={isLight ? "#f0fdfa" : "rgba(20, 184, 166, 0.12)"}
+                  />
+                  <Activity x="14" y="15" width="16" height="16" className="text-teal-400" />
+                  <text
+                    x="44"
+                    y="20"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="11"
+                    fontWeight="600"
+                  >
+                    LogStrata Engine Core
+                  </text>
+                  <text
+                    x="44"
+                    y="33"
+                    fill={currentConfig.accent}
+                    fontFamily="monospace"
+                    fontSize="8.5"
+                    fontWeight="500"
+                  >
+                    {heroState === 0
+                      ? "Status: ANALYSIS ACTIVE"
+                      : heroState === 1
+                      ? "Status: PRE-EMPTING SPIKE"
+                      : heroState === 2
+                      ? "Status: MITIGATING THREAT"
+                      : "Status: CAPACITY RECONCILED"}
+                  </text>
+                </g>
+
+                {/* 4. Left Node: Performance Metrics */}
+                <g
+                  transform="translate(60, 218)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "metrics" ? null : "metrics")}
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="160"
+                    height="44"
+                    rx="7"
+                    fill={nodeFill}
+                    stroke={
+                      selectedNode === "metrics"
+                        ? "#f59e0b"
+                        : heroState === 1
+                        ? "#f59e0b"
+                        : isLight
+                        ? "#cbd5e1"
+                        : "#1e293b"
+                    }
                     strokeWidth="1"
                   />
-                  <g className="icon-spin-reverse" stroke={isLight ? "#4f46e5" : "#818cf8"} strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M 22 13 L 28 16.5 V 25.5 L 22 29 L 16 25.5 V 16.5 Z" />
-                    <line x1="19" y1="18" x2="25" y2="18" />
-                    <line x1="19" y1="21" x2="25" y2="21" />
-                    <line x1="19" y1="24" x2="25" y2="24" />
-                  </g>
-                </g>
-                <text
-                  x={textX}
-                  y={20}
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  LogStrata Engine
-                </text>
-                <text
-                  id="hval-engine-status"
-                  x={textX}
-                  y="32"
-                  fill={isLight ? "#64748b" : "#71717a"}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {engineStatus}
-                </text>
-              </g>
-
-              {/* 4a. Metrics Engine (pill) */}
-              <g transform="translate(50, 172)" className="node-group cursor-pointer" clipPath="url(#hclip-160x38)">
-                <rect
-                  id="hn-metrics"
-                  x="0"
-                  y="0"
-                  width="160"
-                  height="38"
-                  rx="19"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("metrics")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("metrics"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <text
-                  x="16"
-                  y="15"
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="9"
-                  fontWeight="600"
-                >
-                  Metrics Engine
-                </text>
-                <text
-                  id="hval-metrics-latency"
-                  x="16"
-                  y="27"
-                  fill={isLight && metricsColor === "#10b981" ? "#6366f1" : metricsColor}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {metricsLatency}
-                </text>
-              </g>
-
-              {/* 4b. Security Analytics (pill) */}
-              <g transform="translate(250, 172)" className="node-group cursor-pointer" clipPath="url(#hclip-160x38)">
-                <rect
-                  id="hn-security"
-                  x="0"
-                  y="0"
-                  width="160"
-                  height="38"
-                  rx="19"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("security")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("security"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <text
-                  x="16"
-                  y="15"
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="9"
-                  fontWeight="600"
-                >
-                  Security Analytics
-                </text>
-                <text
-                  id="hval-security-status"
-                  x="16"
-                  y="27"
-                  fill={isLight && securityColor === "#10b981" ? "#6366f1" : securityColor}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {securityStatus}
-                </text>
-              </g>
-
-              {/* 5. Autoscaler */}
-              <g transform="translate(130, 222)" className="node-group cursor-pointer" clipPath="url(#hclip-200x46)">
-                <rect
-                  id="hn-auto"
-                  x="0"
-                  y="0"
-                  width="200"
-                  height="46"
-                  rx="6"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("auto")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("auto"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <g>
                   <rect
                     x="8"
-                    y="9"
+                    y="8"
+                    width="28"
+                    height="28"
+                    rx="5"
+                    fill={isLight ? "#fffbeb" : "rgba(245, 158, 11, 0.12)"}
+                  />
+                  <Zap x="14" y="14" width="16" height="16" className="text-amber-500" />
+                  <text
+                    x="42"
+                    y="19"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="10"
+                    fontWeight="600"
+                  >
+                    Metrics Engine
+                  </text>
+                  <text
+                    x="42"
+                    y="31"
+                    fill={isLight ? "#64748b" : "#94a3b8"}
+                    fontFamily="monospace"
+                    fontSize="8"
+                  >
+                    {currentConfig.latency}
+                  </text>
+                </g>
+
+                {/* 5. Right Node: Security Analytics */}
+                <g
+                  transform="translate(300, 218)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "security" ? null : "security")}
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="160"
+                    height="44"
+                    rx="7"
+                    fill={nodeFill}
+                    stroke={
+                      selectedNode === "security"
+                        ? "#f43f5e"
+                        : heroState === 2
+                        ? "#f43f5e"
+                        : isLight
+                        ? "#cbd5e1"
+                        : "#1e293b"
+                    }
+                    strokeWidth="1"
+                  />
+                  <rect
+                    x="8"
+                    y="8"
+                    width="28"
+                    height="28"
+                    rx="5"
+                    fill={isLight ? "#fef2f2" : "rgba(244, 63, 94, 0.12)"}
+                  />
+                  <Shield x="14" y="14" width="16" height="16" className="text-rose-500" />
+                  <text
+                    x="42"
+                    y="19"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="10"
+                    fontWeight="600"
+                  >
+                    Threat Shield
+                  </text>
+                  <text
+                    x="42"
+                    y="31"
+                    fill={heroState === 2 ? "#f43f5e" : isLight ? "#64748b" : "#94a3b8"}
+                    fontFamily="monospace"
+                    fontSize="8"
+                  >
+                    {currentConfig.threats}
+                  </text>
+                </g>
+
+                {/* 6. Decision & Reconciliation Engine */}
+                <g
+                  transform="translate(160, 294)"
+                  className="cursor-pointer group"
+                  onClick={() => setSelectedNode(selectedNode === "decision" ? null : "decision")}
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="200"
+                    height="44"
+                    rx="8"
+                    fill={nodeFill}
+                    stroke={
+                      selectedNode === "decision"
+                        ? "#10b981"
+                        : heroState === 3
+                        ? "#10b981"
+                        : isLight
+                        ? "#cbd5e1"
+                        : "#1e293b"
+                    }
+                    strokeWidth="1"
+                  />
+                  <rect
+                    x="8"
+                    y="8"
                     width="28"
                     height="28"
                     rx="6"
-                    fill={isLight ? "#f0fdf4" : "rgba(16, 185, 129, 0.08)"}
-                    stroke={isLight ? "#bbf7d0" : "rgba(16, 185, 129, 0.2)"}
-                    strokeWidth="1"
+                    fill={isLight ? "#ecfdf5" : "rgba(16, 185, 129, 0.12)"}
                   />
-                  <g className="icon-pulse" stroke={isLight ? "#16a34a" : "#10b981"} strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="22" cy="23" r="8" />
-                    <path d="M 16 23 Q 19 18 22 23 T 28 23" />
-                  </g>
+                  <Layers x="14" y="14" width="16" height="16" className="text-emerald-500" />
+                  <text
+                    x="44"
+                    y="20"
+                    fill={isLight ? "#0f172a" : "#f1f5f9"}
+                    fontSize="11"
+                    fontWeight="600"
+                  >
+                    Autoscaler Decision
+                  </text>
+                  <text
+                    x="44"
+                    y="32"
+                    fill={isLight ? "#64748b" : "#94a3b8"}
+                    fontFamily="monospace"
+                    fontSize="8.5"
+                  >
+                    {heroState === 1 || heroState === 2
+                      ? "Target: 9 replicas (Scale Patch)"
+                      : heroState === 3
+                      ? "Target: 9 replicas (Active)"
+                      : "Target: 3 replicas (Idle)"}
+                  </text>
                 </g>
-                <text
-                  x={textX}
-                  y={20}
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  Autoscaler
-                </text>
-                <text
-                  id="hval-auto-factor"
-                  x={textX}
-                  y="32"
-                  fill={isLight ? "#64748b" : "#71717a"}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {autoFactor}
-                </text>
               </g>
+            );
+          })()}
+        </svg>
 
-              {/* 6. Cluster Scaling */}
-              <g transform="translate(130, 278)" className="node-group cursor-pointer" clipPath="url(#hclip-200x46)">
-                <rect
-                  id="hn-scale"
-                  x="0"
-                  y="0"
-                  width="200"
-                  height="46"
-                  rx="6"
-                  fill={nodeBg}
-                  stroke={getNodeBorder("scale")}
-                  strokeWidth="1"
-                  className="node-rect"
-                  style={{
-                    filter: getNodeFilter("scale"),
-                    transition: "stroke 0.4s ease, filter 0.4s ease",
-                  }}
-                />
-                <g>
-                  <rect
-                    x="8"
-                    y="9"
-                    width="28"
-                    height="28"
-                    rx="6"
-                    fill={isLight ? "#f0fdf4" : "rgba(16, 185, 129, 0.08)"}
-                    stroke={isLight ? "#bbf7d0" : "rgba(16, 185, 129, 0.2)"}
-                    strokeWidth="1"
-                  />
-                  <g className="icon-pulse" stroke={isLight ? "#16a34a" : "#10b981"} strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="22" cy="23" r="8" />
-                    <path d="M 18 23 L 21 26 L 26 19" />
-                  </g>
-                </g>
-                <text
-                  x={textX}
-                  y={20}
-                  fill={isLight ? "#0f172a" : "#e4e4e7"}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  Cluster Scaling
-                </text>
-                <text
-                  id="hval-scale-status"
-                  x={44}
-                  y="32"
-                  fill="#10b981"
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize="7.5"
-                >
-                  {scaleStatus}
-                </text>
-              </g>
-            </g>
-          );
-        })()}
-      </svg>
+        {/* CSS Keyframes for animated dashes */}
+        <style>{`
+          @keyframes flowAnim {
+            from {
+              stroke-dashoffset: 60;
+            }
+            to {
+              stroke-dashoffset: 0;
+            }
+          }
+        `}</style>
+      </div>
+
+      {/* Floating Inspector HUD (Opens on node click or default summary) */}
+      <div className="mt-4 rounded-xl border border-hairline/90 bg-canvas-soft/80 backdrop-blur-md p-3.5 transition-all duration-300 text-xs">
+        {activeNode ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-ink">{activeNode.title}</span>
+                <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                  {activeNode.badge}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedNode(null)}
+                className="text-[10px] text-mute hover:text-ink transition-colors cursor-pointer"
+              >
+                Close Inspector ✕
+              </button>
+            </div>
+            <p className="text-mute text-[11px] leading-relaxed">{activeNode.role}</p>
+            <div className="mt-1 p-2 rounded-lg bg-black/80 dark:bg-black font-mono text-[10px] text-emerald-400 overflow-x-auto">
+              <pre>{JSON.stringify(activeNode.payload, null, 2)}</pre>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-mute text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-primary" />
+              <span>
+                Tip: Click any component node in the diagram above to inspect live JSON telemetry and API payloads.
+              </span>
+            </div>
+            <div className="font-mono text-[10px] text-ink/70">
+              LOG RECONCILIATION: &lt; 50ms
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
