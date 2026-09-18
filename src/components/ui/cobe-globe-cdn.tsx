@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useCallback, useState, useMemo } from "react"
+import { useEffect, useRef, useCallback, useState, useMemo, useSyncExternalStore } from "react"
 import createGlobe from "cobe"
 import { useTheme } from "next-themes"
 
@@ -60,7 +60,11 @@ export function GlobeCdn({
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null)
   const isPausedRef = useRef(false)
   const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
   
   // Persistent refs for phi and theta rotation to prevent resets/snappings
   const phiRef = useRef(0)
@@ -72,10 +76,6 @@ export function GlobeCdn({
   const [traffic, setTraffic] = useState(() =>
     defaultArcs.map((a, i) => ({ id: a.id, value: [420, 380, 290, 185, 156, 134][i] || 100 }))
   )
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const isDark = mounted && resolvedTheme === "dark"
 

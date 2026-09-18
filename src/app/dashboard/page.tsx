@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
@@ -48,61 +49,41 @@ interface SystemAlert {
   message: string;
 }
 
+interface CustomTemplate {
+  name: string;
+  config: {
+    trafficMode: "normal" | "high" | "viral" | "ddos";
+    requestRate: number;
+    cpu: number;
+    memory: number;
+    disk: number;
+    network: number;
+    sliderCpu: number;
+    sliderMemory: number;
+    sliderDisk: number;
+    sliderNetwork: number;
+    userOverridden: Record<string, boolean>;
+    dbFailure: boolean;
+    apiFailure: boolean;
+    authFailure: boolean;
+    timeoutFailure: boolean;
+    serviceCrash: boolean;
+    autoScalingEnabled: boolean;
+    activeAnomaly: "none" | "leak" | "spike" | "storm" | "outage";
+    leakRate: number;
+  };
+}
+
 export default function Dashboard() {
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-      } else {
-        setUser(session.user);
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        router.push("/login");
-      } else {
-        setUser(session.user);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
-
-  useEffect(() => {
-    setTimelineEvents([
-      { id: "init", time: new Date().toLocaleTimeString(), text: "DevOps Playground Simulator Lab initialized.", type: "INFO" }
-    ]);
-    const timer = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Load custom templates on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("logstrata_templates");
-      if (stored) {
-        try {
-          setCustomTemplates(JSON.parse(stored));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-  }, []);
-
-  const isLight = mounted && resolvedTheme === "light";
 
   // --- Traffic Simulation State ---
   const [trafficMode, setTrafficMode] = useState<"normal" | "high" | "viral" | "ddos">("normal");
@@ -154,7 +135,14 @@ export default function Dashboard() {
   const [leakRate, setLeakRate] = useState(0);
 
   // --- Central Event Timeline State ---
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(() => [
+    {
+      id: "init",
+      time: typeof window !== "undefined" ? new Date().toLocaleTimeString() : "--:--:--",
+      text: "DevOps Playground Simulator Lab initialized.",
+      type: "INFO",
+    },
+  ]);
 
   // --- Alerts State ---
   const [activeAlerts, setActiveAlerts] = useState<SystemAlert[]>([]);
@@ -166,7 +154,44 @@ export default function Dashboard() {
 
   // --- Custom Templates State ---
   const [templateName, setTemplateName] = useState("");
-  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("logstrata_templates");
+        if (stored) return JSON.parse(stored);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push("/login");
+      } else {
+        setUser(session.user);
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.push("/login");
+      } else {
+        setUser(session.user);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  const isLight = mounted && resolvedTheme === "light";
 
   // Refs for chart history
   const telemetryHistory = useRef<TelemetryPoint[]>(
@@ -275,7 +300,7 @@ export default function Dashboard() {
     addTerminalLog("INFO", "sandbox-manager", `Saved custom configuration template: ${newTemplate.name}`);
   };
 
-  const handleLoadTemplate = (tpl: any) => {
+  const handleLoadTemplate = (tpl: CustomTemplate) => {
     const { config } = tpl;
     setTrafficMode(config.trafficMode);
     setRequestRate(config.requestRate);

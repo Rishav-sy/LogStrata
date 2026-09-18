@@ -84,7 +84,7 @@ All plans include access to our platform, lead generation tools, and dedicated s
         <div className="relative inline-flex items-center cursor-pointer">
           <Label className="flex items-center">
             <Switch
-              ref={switchRef as any}
+              ref={switchRef}
               checked={!isMonthly}
               onCheckedChange={handleToggle}
               className="relative"
