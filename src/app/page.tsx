@@ -7,12 +7,11 @@ import { supabase } from "@/lib/supabase";
 import { HeroDiagram } from "@/components/HeroDiagram";
 import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
 import { FallingPattern } from "@/components/ui/falling-pattern";
-import { ButtonColorful } from "@/components/ui/button-colorful";
 import { Pricing } from "@/components/ui/pricing";
 import { FaqSectionWithCategories } from "@/components/blocks/faq-with-categories";
 import { FloatingPaths } from "@/components/ui/background-paths";
 import { Snippet } from "@/components/ui/snippet";
-import { Terminal as TerminalIcon, Shield, Zap, Sparkles, Check, Play, Copy, CheckSquare, ArrowRight } from "lucide-react";
+import { Terminal as TerminalIcon, Shield, Zap, Sparkles, ArrowRight } from "lucide-react";
 
 type UseCaseKey = "spike" | "ddos" | "chaos";
 

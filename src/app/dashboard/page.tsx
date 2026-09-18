@@ -5,12 +5,11 @@ import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { BorderBeam } from "@/components/ui/border-beam";
 import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
 import {
   Play, Pause, Trash2, Download, AlertTriangle, Cpu, Layers,
-  Plus, Minus, Server, Activity, Shield, Database, Key, Clock,
-  X, Check, Flame, AlertCircle, HardDrive, Wifi, HelpCircle
+  Plus, Minus, Server, Activity, Database, Key, Clock,
+  Check, Flame, AlertCircle, HardDrive, Wifi
 } from "lucide-react";
 
 interface TelemetryPoint {
