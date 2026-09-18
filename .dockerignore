@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.agents
+.vscode
+.wrangler
+*.log
+*.pptx
+*.py
+*.gif
+.env.local
+logstrata_migration.md

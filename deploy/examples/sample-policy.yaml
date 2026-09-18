@@ -1,0 +1,25 @@
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: frontend-log-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: commerce-frontend
+  minReplicas: 3
+  maxReplicas: 25
+  rules:
+    - metric: "http_requests_per_second"
+      threshold: 450.0
+      window: "10s"
+      action: "scale_up"
+    - metric: "http_5xx_error_percentage"
+      threshold: 5.0
+      window: "30s"
+      action: "scale_up"
+  security:
+    lockScaleDownOnThreat: true
+    autoBlockMaliciousIPs: true
+    threatThreshold: 80.0

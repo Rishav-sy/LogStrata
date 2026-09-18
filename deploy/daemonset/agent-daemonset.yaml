@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: logstrata-agent
+  namespace: logstrata-system
+  labels:
+    app.kubernetes.io/name: logstrata-agent
+    app.kubernetes.io/part-of: logstrata
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: logstrata-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: logstrata-agent
+    spec:
+      serviceAccountName: logstrata-agent
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: agent
+          image: rishavsy/logstrata-agent:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: false
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: containerd-sock
+              mountPath: /run/containerd/containerd.sock
+              readOnly: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+      volumes:
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: containerd-sock
+          hostPath:
+            path: /run/containerd/containerd.sock
