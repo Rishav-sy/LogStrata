@@ -36,9 +36,16 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - **Webhook Alert Dispatcher** (`pkg/notifier`): Multi-channel incident notifications with rich Slack, Discord, and PagerDuty payloads.
 - **Live SSE Dashboard Hook** (`src/hooks/useDaemonStream`): EventSource hook with auto-reconnect, connection state indicator (LIVE/CONNECTING/OFFLINE), and real replica count sync from daemon stream.
 
-### 🏭 Added — Production Hardening (Sprint 5)
+### 🏭 Added — Production Hardening & Ecosystem
+- **Kubernetes Admission Webhooks** (`pkg/admission`): Validating and Mutating Webhook controllers validating CRD ranges and automatically injecting resilient production defaults.
+- **Fail-Safe Circuit Breaker Watchdog** (`pkg/controller/failover.go`): Three-state watchdog (`CLOSED`, `HALF_OPEN`, `OPEN`) preventing pod flapping and safely yielding scaling control to native HPA if telemetry heartbeats degrade.
+- **KIND Local E2E Simulation Harness** (`scripts/test-e2e-kind.sh`): Automated cluster setup, local image building/loading, CRD installation, sample workload deployment, and scale verification.
+- **CLI Diagnostics & Offline Evaluator** (`cmd/logstrata-cli`): Added `logstrata benchmark` (in-memory zero-alloc performance run) and `logstrata evaluate` (offline policy dry-run against historical logs).
+- **eBPF XDP Ingress Shield** (`pkg/waf`): Added `CiliumClusterwideNetworkPolicy` and raw BPF map generation for driver-level kernel packet dropping (`XDP_DROP`).
+- **Interactive Simulation Controls** (`src/components/ArchitectureDiagram.tsx`): Added pause/resume controls and 7 interactive simulation stage selection pills.
+- **CLI Reference Guide** (`/docs/cli-tool`): Added comprehensive CLI documentation to the Next.js static site.
 - **Distroless multi-stage Dockerfiles**: `gcr.io/distroless/static-debian12:nonroot` runtime, `CGO_ENABLED=0` static binaries, non-root UID 65532.
-- **Production Helm chart v1.0.0**: HA controller (2 replicas with leader election), daemon anti-affinity, PodDisruptionBudget, Prometheus ServiceMonitor, NetworkPolicy isolation, hardened security contexts (readOnlyRootFilesystem, capability drops, seccompProfile).
+- **Production Helm chart v1.0.0**: HA controller (2 replicas with leader election), daemon anti-affinity, PodDisruptionBudget, Prometheus ServiceMonitor, NetworkPolicy isolation, admission webhook templates, and hardened security contexts.
 - **5-minute install script**: `curl -fsSL https://logstrata.io/install.sh | sh` with auto-Helm install, namespace PSA labeling, and post-install healthcheck.
 - **Full CI pipeline**: 5 parallel GitHub Actions jobs — Go vet+staticcheck+race test, Frontend ESLint+TypeScript+build, Helm lint, Trivy security scan with SARIF upload, Docker build validation.
 - **Release pipeline**: Multi-arch Docker publish (linux/amd64 + linux/arm64) to GHCR, Helm chart publish to GitHub Pages, cross-compiled CLI binaries (linux/darwin/windows × amd64/arm64) with SHA256 checksums.
