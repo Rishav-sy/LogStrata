@@ -8,6 +8,7 @@ export function generateStaticParams() {
     { slug: "scaling-policies" },
     { slug: "security-analytics" },
     { slug: "api-reference" },
+    { slug: "cli-tool" },
   ];
 }
 

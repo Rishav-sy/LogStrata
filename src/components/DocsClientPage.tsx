@@ -17,6 +17,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Scaling Policies", slug: "scaling-policies", path: "/docs/scaling-policies" },
   { label: "Security Analytics", slug: "security-analytics", path: "/docs/security-analytics" },
   { label: "API Reference", slug: "api-reference", path: "/docs/api-reference" },
+  { label: "CLI Tool", slug: "cli-tool", path: "/docs/cli-tool" },
 ];
 
 interface DocContent {
@@ -592,6 +593,100 @@ logstrata_threat_scale_lock 0`}
                 </code>
               </pre>
             </div>
+          </div>
+        </section>
+      </div>
+    ),
+  },
+  "cli-tool": {
+    title: "CLI Diagnostics Tool",
+    description: "Inspect cluster status, stream live telemetry, run benchmarks, and dry-run policies.",
+    category: "Reference",
+    titleHeader: "LogStrata CLI Diagnostics",
+    subHeader: "The official logstrata CLI command-line utility for local and in-cluster observability.",
+    element: (
+      <div className="flex flex-col gap-6">
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-ink">Installation & Quickstart</h2>
+          <p className="text-xs text-body leading-relaxed">
+            The CLI binary is compiled with Go 1.24+ and contains zero external dependencies. Build directly from source or download from release artifacts:
+          </p>
+          <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
+            <span className="text-mute"># Compile CLI binary</span>
+            <br />
+            <span className="text-mute">$</span> go build -o /usr/local/bin/logstrata ./cmd/logstrata-cli
+            <br />
+            <span className="text-mute">$</span> logstrata --help
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-ink">Commands Overview</h2>
+          <div className="border border-hairline overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead className="bg-canvas-soft border-b border-hairline text-mute">
+                <tr>
+                  <th className="py-2.5 px-4">Command</th>
+                  <th className="py-2.5 px-4">Arguments / Flags</th>
+                  <th className="py-2.5 px-4">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-hairline">
+                <tr>
+                  <td className="py-2.5 px-4 font-bold text-ink">status</td>
+                  <td className="py-2.5 px-4 text-mute">--endpoint &lt;url&gt;</td>
+                  <td className="py-2.5 px-4 text-body font-sans">Queries live daemon health, real-time RPS, active replicas, and quarantined threat IPs.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-4 font-bold text-ink">stream</td>
+                  <td className="py-2.5 px-4 text-mute">--endpoint &lt;url&gt;</td>
+                  <td className="py-2.5 px-4 text-body font-sans">Subscribes to live Server-Sent Events (SSE) stream for continuous console monitoring.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-4 font-bold text-ink">simulate</td>
+                  <td className="py-2.5 px-4 text-mute">--mode &lt;steady|spike|ddos&gt; --rps &lt;n&gt;</td>
+                  <td className="py-2.5 px-4 text-body font-sans">Generates realistic synthetic log streams into the daemon ingest pipeline.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-4 font-bold text-ink">benchmark</td>
+                  <td className="py-2.5 px-4 text-mute">--ops &lt;count&gt;</td>
+                  <td className="py-2.5 px-4 text-body font-sans">Runs the in-memory zero-allocation circular buffer benchmark locally.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-4 font-bold text-ink">evaluate</td>
+                  <td className="py-2.5 px-4 text-mute">-f policy.yaml -l access.log</td>
+                  <td className="py-2.5 px-4 text-body font-sans">Offline dry-run of a policy against historical access logs without applying to K8s.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-ink">Example: In-Memory Engine Benchmark</h2>
+          <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
+            <span className="text-mute">$</span> logstrata benchmark --ops 1000000
+            <br />
+            <br />
+            <span className="text-mute">[BENCHMARK] Initializing Sliding-Window Engine (Ring Buffer: 60s)...</span>
+            <br />
+            <span className="text-mute">[BENCHMARK] Processing 1000000 records in-memory...</span>
+            <br />
+            ------------------------------------------------------------
+            <br />
+            RESULTS:
+            <br />
+            &nbsp;&nbsp;Total Operations:&nbsp;&nbsp;1000000
+            <br />
+            &nbsp;&nbsp;Elapsed Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.86ms
+            <br />
+            &nbsp;&nbsp;Throughput:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127,100,000.00 ops/sec (127.1 M ops/s)
+            <br />
+            &nbsp;&nbsp;Latency:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9.30 ns/op
+            <br />
+            &nbsp;&nbsp;Heap Allocations:&nbsp;&nbsp;0 B/op (Zero-Allocation Hot Path)
+            <br />
+            ------------------------------------------------------------
           </div>
         </section>
       </div>
