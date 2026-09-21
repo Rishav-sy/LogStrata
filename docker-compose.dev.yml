@@ -1,0 +1,125 @@
+# =============================================================================
+# LogStrata Production Docker Compose — Local Dev & Integration Testing
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.dev.yml up
+#   docker compose -f docker-compose.dev.yml down -v
+#
+# Services:
+#   logstrata-daemon    — Go daemon (hot-rebuild via Air)
+#   logstrata-web       — Next.js dashboard (dev server)
+#   prometheus          — Metrics scraping
+#   grafana             — Dashboards (pre-configured)
+# =============================================================================
+version: "3.9"
+
+networks:
+  logstrata-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+services:
+  # ──────────────────────────────────────────────────────────────────────────
+  # LogStrata Daemon — log ingestion, anomaly detection, metrics endpoint
+  # ──────────────────────────────────────────────────────────────────────────
+  logstrata-daemon:
+    build:
+      context: .
+      dockerfile: cmd/logstrata-daemon/Dockerfile
+      target: builder        # Use the builder stage so we get a shell for dev
+    command: >
+      go run ./cmd/logstrata-daemon
+        --listen-addr=:8080
+        --min-replicas=2
+        --max-replicas=20
+        --target-rps-per-pod=150
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - /tmp/logstrata-logs:/var/log/pods:ro  # local log dir for testing
+    ports:
+      - "8080:8080"       # API: /healthz /api/v1/status /api/v1/stream
+      - "9090:8080"       # Also expose as Prometheus scrape target
+    environment:
+      - GODEBUG=asyncpreemptoff=0
+    networks:
+      - logstrata-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Next.js Web Dashboard — dev server with hot reload
+  # ──────────────────────────────────────────────────────────────────────────
+  logstrata-web:
+    image: node:20-slim
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev"
+    volumes:
+      - .:/app
+      - /app/node_modules    # avoid overwriting host node_modules
+      - /app/.next           # avoid overwriting host .next
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_DAEMON_URL=http://logstrata-daemon:8080
+    env_file:
+      - .env.local
+    networks:
+      - logstrata-net
+    depends_on:
+      logstrata-daemon:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Prometheus — scrapes daemon metrics endpoint
+  # ──────────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9091:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    networks:
+      - logstrata-net
+    depends_on:
+      - logstrata-daemon
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Grafana — pre-configured with LogStrata dashboard + Prometheus datasource
+  # ──────────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/logstrata-dashboard.json:/var/lib/grafana/dashboards/logstrata.json:ro
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=logstrata
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    networks:
+      - logstrata-net
+    depends_on:
+      - prometheus
+    restart: unless-stopped

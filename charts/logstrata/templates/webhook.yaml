@@ -1,0 +1,49 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "logstrata.fullname" . }}-validating-webhook
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+webhooks:
+  - name: validate.logstrata.io
+    rules:
+      - apiGroups: ["core.logstrata.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["logautoscalerpolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      service:
+        name: {{ include "logstrata.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/validate"
+        port: {{ .Values.webhook.service.targetPort }}
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy | default "Fail" }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "logstrata.fullname" . }}-mutating-webhook
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+webhooks:
+  - name: mutate.logstrata.io
+    rules:
+      - apiGroups: ["core.logstrata.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE"]
+        resources: ["logautoscalerpolicies"]
+        scope: "Namespaced"
+    clientConfig:
+      service:
+        name: {{ include "logstrata.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate"
+        port: {{ .Values.webhook.service.targetPort }}
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy | default "Fail" }}
+{{- end }}

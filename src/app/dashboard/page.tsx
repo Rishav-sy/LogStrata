@@ -11,6 +11,8 @@ import {
   Plus, Minus, Server, Activity, Database, Key, Clock,
   Check, Flame, AlertCircle, HardDrive, Wifi
 } from "lucide-react";
+import { useDaemonStream } from "@/hooks/useDaemonStream";
+import type { DaemonStreamPayload } from "@/hooks/useDaemonStream";
 
 interface TelemetryPoint {
   rps: number;
@@ -160,6 +162,7 @@ export default function Dashboard() {
     return [];
   });
 
+
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -241,6 +244,48 @@ export default function Dashboard() {
       },
     ]);
   }, []);
+
+  // --- Live Daemon Telemetry (SSE) ---
+  // Connects to logstrata-daemon /api/v1/stream when NEXT_PUBLIC_DAEMON_URL is set.
+  // Falls back to simulation-only mode when daemon is unavailable.
+  // onMessage is safe as a plain function — useDaemonStream stores it in a ref internally.
+  const [liveTelemetry, setLiveTelemetry] = useState<DaemonStreamPayload | null>(null);
+  const { connectionState: daemonConnectionState } = useDaemonStream({
+    onMessage(payload: DaemonStreamPayload) {
+      setLiveTelemetry(payload);
+      // Inject live replica count into the sandbox pod list
+      if (payload.current_replicas > 0) {
+        setContainers((prev) => {
+          const diff = payload.current_replicas - prev.length;
+          if (diff > 0) {
+            const now = Date.now();
+            const newPods = Array.from({ length: diff }, (_, i) => ({
+              id: `live-${now}-${i}`,
+              name: `pod-ingress-${Math.random().toString(36).slice(2, 6)}`,
+              status: "starting" as const,
+              createdAt: now,
+            }));
+            return [...prev, ...newPods];
+          } else if (diff < 0) {
+            return prev.slice(0, payload.current_replicas);
+          }
+          return prev;
+        });
+      }
+      // Surface scale decisions as timeline events
+      if (payload.last_decision_action === "SCALE_UP") {
+        addTimelineEvent(
+          `[DAEMON] Scale UP → ${payload.target_replicas} replicas (${payload.rps.toFixed(0)} RPS)`,
+          "SCALE_UP"
+        );
+      } else if (payload.last_decision_action === "SCALE_DOWN") {
+        addTimelineEvent(
+          `[DAEMON] Scale DOWN → ${payload.target_replicas} replicas (${payload.rps.toFixed(0)} RPS)`,
+          "SCALE_DOWN"
+        );
+      }
+    },
+  });
 
   // --- Helper: Manage Alerts ---
   const triggerAlert = useCallback((level: SystemAlert["level"], message: string) => {
@@ -936,12 +981,33 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* User & Alert Ticker */}
+          {/* User, Daemon Status & Alert Ticker */}
           <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
             {user?.email && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-hairline bg-canvas-soft text-[11px] font-mono text-body">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="truncate max-w-[180px]">{user.email}</span>
+              </div>
+            )}
+
+            {/* Live daemon connection badge */}
+            {daemonConnectionState === "connected" ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-mono font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>DAEMON: LIVE</span>
+                {liveTelemetry && (
+                  <span className="opacity-60 ml-0.5">{liveTelemetry.rps.toFixed(0)} RPS</span>
+                )}
+              </div>
+            ) : daemonConnectionState === "connecting" ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-[11px] font-mono font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                <span>DAEMON: CONNECTING…</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-hairline bg-canvas-soft text-body text-[11px] font-mono">
+                <span className="h-1.5 w-1.5 rounded-full bg-body/40" />
+                <span>DAEMON: OFFLINE (SIM)</span>
               </div>
             )}
 

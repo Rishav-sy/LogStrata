@@ -6,18 +6,80 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  GO_VERSION: "1.22"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/logstrata
+
 jobs:
-  validate:
-    name: Lint, Typecheck & Build
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Go — vet, staticcheck, test, build
+  # ─────────────────────────────────────────────────────────────────────────────
+  go-validate:
+    name: Go Lint, Test & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Staticcheck
+        run: staticcheck ./...
+
+      - name: Run unit tests (with race detector)
+        run: go test -race -count=1 -timeout 120s ./...
+
+      - name: Build daemon binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags="-s -w" -trimpath \
+            -o bin/logstrata-daemon ./cmd/logstrata-daemon
+
+      - name: Build controller binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags="-s -w" -trimpath \
+            -o bin/logstrata-controller ./cmd/logstrata-controller
+
+      - name: Build CLI binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags="-s -w" -trimpath \
+            -o bin/logstrata-cli ./cmd/logstrata-cli
+
+      - name: Upload Go binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-binaries
+          path: bin/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Frontend — ESLint, TypeScript type-check, Next.js build
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend-validate:
+    name: Frontend Lint, Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
@@ -26,16 +88,97 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Run TypeScript type-check
+        run: npx tsc --noEmit
+
       - name: Run Next.js Build
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_ENV: production
+          # Use stub values for CI — real secrets are injected at deploy time
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-key"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 3: Helm — lint & template validation
+  # ─────────────────────────────────────────────────────────────────────────────
+  helm-validate:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Lint Helm Chart
-        run: helm lint charts/logstrata
+      - name: Helm lint
+        run: helm lint charts/logstrata --strict
+
+      - name: Helm template (dry-run)
+        run: helm template logstrata-test charts/logstrata --debug > /dev/null
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 4: Security scan — Trivy on source + Dockerfiles
+  # ─────────────────────────────────────────────────────────────────────────────
+  security-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy — filesystem scan (CRITICAL + HIGH)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 5: Docker build validation (build-only, no push on PRs)
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: [go-validate]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build daemon image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: cmd/logstrata-daemon/Dockerfile
+          push: false
+          tags: logstrata-daemon:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build controller image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: cmd/logstrata-controller/Dockerfile
+          push: false
+          tags: logstrata-controller:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

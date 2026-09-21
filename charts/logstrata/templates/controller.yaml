@@ -6,52 +6,121 @@ metadata:
   labels:
     {{- include "logstrata.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
+  annotations:
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 spec:
   replicas: {{ .Values.controller.replicaCount | default 1 }}
   selector:
     matchLabels:
       {{- include "logstrata.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: controller
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         {{- include "logstrata.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: controller
+      annotations:
+        {{- toYaml .Values.controller.podAnnotations | nindent 8 }}
     spec:
       serviceAccountName: {{ include "logstrata.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.controller.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: controller
-          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default "latest" }}"
+          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy | default "IfNotPresent" }}
           command: ["/app/logstrata-controller"]
           args:
-            - "--listen-addr=:8081"
+            - "--listen-addr={{ .Values.controller.args.listenAddr }}"
+            {{- if .Values.controller.leaderElection.enabled }}
+            - "--leader-elect=true"
+            - "--leader-elect-namespace={{ .Values.controller.leaderElection.namespace | default .Release.Namespace }}"
+            {{- end }}
           ports:
             - name: http-status
               containerPort: 8081
               protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            {{- toYaml .Values.controller.securityContext | nindent 12 }}
           resources:
             {{- toYaml .Values.controller.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-status
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http-status
+            initialDelaySeconds: 3
+            periodSeconds: 10
 ---
+# ─── RBAC ────────────────────────────────────────────────────────────────────
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "logstrata.fullname" . }}-controller-role
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
 rules:
+  # Scale workloads
   - apiGroups: ["apps"]
     resources: ["deployments", "replicasets", "deployments/scale"]
     verbs: ["get", "list", "watch", "update", "patch"]
+  # Inject NetworkPolicies for threat mitigation
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read/write LogStrata CRDs
   - apiGroups: ["core.logstrata.io", "security.logstrata.io"]
     resources: ["*"]
-    verbs: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Leader election lease
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Events for status reporting
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "logstrata.fullname" . }}-controller-binding
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

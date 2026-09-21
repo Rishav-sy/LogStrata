@@ -1,0 +1,17 @@
+{{- if .Values.podDisruptionBudget.controller.enabled }}
+{{- if .Values.controller.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "logstrata.fullname" . }}-controller-pdb
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.controller.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "logstrata.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+{{- end }}
+{{- end }}

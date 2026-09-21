@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'local-dev'
+    env: 'development'
+
+rule_files: []
+
+scrape_configs:
+  # Scrape LogStrata daemon metrics
+  - job_name: 'logstrata-daemon'
+    static_configs:
+      - targets: ['logstrata-daemon:8080']
+    metrics_path: /metrics
+    scrape_interval: 5s   # More frequent for dev observation
+
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

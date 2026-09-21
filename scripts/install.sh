@@ -1,70 +1,189 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# LogStrata 5-Minute Production Cluster Installer
-# Installs LogStrata CRDs, DaemonSet Agent, and Operator Controller
-# ==============================================================================
-
+# =============================================================================
+# LogStrata Installer — curl -fsSL https://logstrata.io/install.sh | sh
+# =============================================================================
+# Supports: Linux (amd64/arm64), macOS (amd64/arm64)
+# Requirements: kubectl, helm (auto-installed if missing)
+# =============================================================================
 set -euo pipefail
 
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-AMBER='\033[0;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+# ── Colours ───────────────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
+OK="${GREEN}✔${RESET}"; WARN="${YELLOW}⚠${RESET}"; ERR="${RED}✖${RESET}"
+INFO="${CYAN}→${RESET}"
 
-echo -e "${CYAN}"
-cat << "EOF"
-  _                   ____  _             _        
- | |    ___   __ _ / ___|| |_ _ __ __ _| |_ __ _ 
- | |   / _ \ / _` |\___ \| __| '__/ _` | __/ _` |
- | |__| (_) | (_| | ___) | |_| | | (_| | || (_| |
- |_____\___/ \__, ||____/ \__|_|  \__,_|\__\__,_|
-             |___/                                
- Intelligent Log-Driven Kubernetes Scaling & Ingress Defense
-EOF
-echo -e "${NC}"
+# ── Config ────────────────────────────────────────────────────────────────────
+CHART_REPO_URL="https://rishav-sy.github.io/logstrata"
+CHART_NAME="logstrata"
+RELEASE_NAME="${LOGSTRATA_RELEASE:-logstrata}"
+NAMESPACE="${LOGSTRATA_NAMESPACE:-logstrata}"
+HELM_VERSION="v3.14.0"
 
-echo -e "${CYAN}[1/4] Checking prerequisites...${NC}"
-command -v kubectl >/dev/null 2>&1 || { echo -e "${RED}Error: kubectl is required but not installed.${NC}" >&2; exit 1; }
-command -v helm >/dev/null 2>&1 || { echo -e "${RED}Error: helm is required but not installed.${NC}" >&2; exit 1; }
+header() {
+  echo ""
+  echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════╗${RESET}"
+  echo -e "${BOLD}${CYAN}║   LogStrata — Log-Driven Kubernetes Scaling  ║${RESET}"
+  echo -e "${BOLD}${CYAN}║   5-Minute Quickstart Installer  v1.0.0      ║${RESET}"
+  echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════╝${RESET}"
+  echo ""
+}
 
-# Verify cluster connectivity
-echo -e "${CYAN}[2/4] Verifying Kubernetes cluster connectivity...${NC}"
-CURRENT_CONTEXT=$(kubectl config current-context 2>/dev/null || true)
-if [ -z "$CURRENT_CONTEXT" ]; then
-    echo -e "${RED}Error: No active Kubernetes context found. Please connect to a cluster.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ Connected to cluster context: ${CURRENT_CONTEXT}${NC}"
+log()  { echo -e "  ${INFO} $*"; }
+ok()   { echo -e "  ${OK}  $*"; }
+warn() { echo -e "  ${WARN} $*"; }
+die()  { echo -e "  ${ERR}  $*" >&2; exit 1; }
 
-NAMESPACE="logstrata-system"
+check_requirements() {
+  echo -e "${BOLD}[1/5] Checking requirements...${RESET}"
 
-echo -e "${CYAN}[3/4] Creating namespace and installing Custom Resource Definitions...${NC}"
-kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+  command -v kubectl &>/dev/null || die "kubectl not found. Install it: https://kubernetes.io/docs/tasks/tools/"
+  ok "kubectl $(kubectl version --client --short 2>/dev/null | head -1 | awk '{print $3}')"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+  if ! command -v helm &>/dev/null; then
+    warn "helm not found — installing..."
+    install_helm
+  fi
+  ok "helm $(helm version --short)"
 
-if [ -d "${REPO_ROOT}/charts/logstrata/crds" ]; then
-    kubectl apply -f "${REPO_ROOT}/charts/logstrata/crds/"
-else
-    echo -e "${AMBER}Warning: Local CRD directory not found, using Helm crd hooks.${NC}"
-fi
+  # Verify cluster connectivity
+  kubectl cluster-info &>/dev/null || die "Cannot connect to a Kubernetes cluster. Check your kubeconfig."
+  CONTEXT=$(kubectl config current-context)
+  ok "Connected to cluster: ${BOLD}${CONTEXT}${RESET}"
+}
 
-echo -e "${CYAN}[4/4] Deploying LogStrata Helm chart...${NC}"
-helm upgrade --install logstrata "${REPO_ROOT}/charts/logstrata" \
-  --namespace "${NAMESPACE}" \
-  --set daemon.enabled=true \
-  --set controller.enabled=true
+install_helm() {
+  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+  ARCH=$(uname -m); [[ "$ARCH" == "x86_64" ]] && ARCH="amd64" || ARCH="arm64"
+  TMPDIR=$(mktemp -d)
+  TARBALL="${TMPDIR}/helm.tar.gz"
 
-echo -e "${GREEN}"
-echo "=================================================================="
-echo " LogStrata successfully deployed to namespace: ${NAMESPACE}"
-echo "=================================================================="
-echo -e "${NC}"
-echo "Useful Commands:"
-echo "  kubectl get pods -n ${NAMESPACE}"
-echo "  kubectl get logautoscalerpolicies -A"
-echo "  kubectl get logthreatpolicies -A"
-echo "  kubectl port-forward -n ${NAMESPACE} svc/logstrata 3000:80"
-echo ""
+  log "Downloading Helm ${HELM_VERSION} for ${OS}/${ARCH}..."
+  curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz" -o "${TARBALL}"
+  tar -xzf "${TARBALL}" -C "${TMPDIR}"
+  sudo mv "${TMPDIR}/${OS}-${ARCH}/helm" /usr/local/bin/helm
+  sudo chmod +x /usr/local/bin/helm
+  rm -rf "${TMPDIR}"
+  ok "Helm installed"
+}
+
+add_helm_repo() {
+  echo ""
+  echo -e "${BOLD}[2/5] Adding LogStrata Helm repository...${RESET}"
+
+  helm repo add "${CHART_NAME}" "${CHART_REPO_URL}" 2>/dev/null || true
+  helm repo update
+  ok "Repository synced"
+}
+
+create_namespace() {
+  echo ""
+  echo -e "${BOLD}[3/5] Preparing namespace: ${NAMESPACE}${RESET}"
+
+  if kubectl get namespace "${NAMESPACE}" &>/dev/null; then
+    warn "Namespace '${NAMESPACE}' already exists — skipping"
+  else
+    kubectl create namespace "${NAMESPACE}"
+    ok "Namespace created"
+  fi
+
+  # Label namespace for NetworkPolicy and PSA
+  kubectl label namespace "${NAMESPACE}" \
+    logstrata.io/managed="true" \
+    pod-security.kubernetes.io/enforce="restricted" \
+    pod-security.kubernetes.io/warn="restricted" \
+    --overwrite
+  ok "Namespace labelled (PSA restricted)"
+}
+
+install_crds() {
+  echo ""
+  echo -e "${BOLD}[4/5] Installing CRDs...${RESET}"
+
+  # Apply CRDs from the chart (pre-install hook handles this automatically)
+  # Manual fallback: apply from the deploy/crds directory
+  if ls deploy/crds/*.yaml &>/dev/null 2>&1; then
+    kubectl apply -f deploy/crds/ --server-side
+    ok "CRDs applied (from local deploy/crds/)"
+  else
+    log "CRDs will be installed via Helm chart hooks"
+  fi
+}
+
+install_chart() {
+  echo ""
+  echo -e "${BOLD}[5/5] Installing LogStrata...${RESET}"
+
+  # Build helm flags from environment overrides
+  HELM_EXTRA_ARGS=()
+  [[ -n "${LOGSTRATA_DAEMON_IMAGE:-}" ]]  && HELM_EXTRA_ARGS+=(--set "daemon.image.repository=${LOGSTRATA_DAEMON_IMAGE}")
+  [[ -n "${LOGSTRATA_DAEMON_TAG:-}" ]]    && HELM_EXTRA_ARGS+=(--set "daemon.image.tag=${LOGSTRATA_DAEMON_TAG}")
+  [[ -n "${LOGSTRATA_CTRL_IMAGE:-}" ]]    && HELM_EXTRA_ARGS+=(--set "controller.image.repository=${LOGSTRATA_CTRL_IMAGE}")
+  [[ -n "${LOGSTRATA_CTRL_TAG:-}" ]]      && HELM_EXTRA_ARGS+=(--set "controller.image.tag=${LOGSTRATA_CTRL_TAG}")
+
+  helm upgrade --install "${RELEASE_NAME}" "${CHART_NAME}/${CHART_NAME}" \
+    --namespace "${NAMESPACE}" \
+    --create-namespace \
+    --wait \
+    --timeout 5m \
+    "${HELM_EXTRA_ARGS[@]+"${HELM_EXTRA_ARGS[@]}"}"
+
+  ok "LogStrata installed ✓"
+}
+
+verify_install() {
+  echo ""
+  echo -e "${BOLD}Verifying installation...${RESET}"
+
+  # Wait for DaemonSet rollout
+  kubectl rollout status daemonset/"${RELEASE_NAME}-daemon" \
+    -n "${NAMESPACE}" --timeout=120s
+  ok "Daemon DaemonSet is healthy"
+
+  # Wait for Controller deployment
+  kubectl rollout status deployment/"${RELEASE_NAME}-controller" \
+    -n "${NAMESPACE}" --timeout=120s
+  ok "Controller Deployment is healthy"
+
+  # Quick healthcheck
+  POD=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/component=daemon \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -n "${POD}" ]]; then
+    STATUS=$(kubectl exec -n "${NAMESPACE}" "${POD}" -- \
+      wget -qO- http://localhost:8080/healthz 2>/dev/null || echo "unavailable")
+    [[ "${STATUS}" == "OK" ]] && ok "Daemon healthz: OK" || warn "Daemon healthz returned: ${STATUS}"
+  fi
+}
+
+print_summary() {
+  echo ""
+  echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${RESET}"
+  echo -e "${GREEN}${BOLD}  🚀  LogStrata is running!${RESET}"
+  echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${RESET}"
+  echo ""
+  echo -e "  ${INFO} View daemon status:"
+  echo -e "     kubectl -n ${NAMESPACE} exec -it ds/${RELEASE_NAME}-daemon -- wget -qO- http://localhost:8080/api/v1/status | jq"
+  echo ""
+  echo -e "  ${INFO} Stream live telemetry:"
+  echo -e "     kubectl -n ${NAMESPACE} exec -it ds/${RELEASE_NAME}-daemon -- wget -qO- http://localhost:8080/api/v1/stream"
+  echo ""
+  echo -e "  ${INFO} View all pods:"
+  echo -e "     kubectl get pods -n ${NAMESPACE}"
+  echo ""
+  echo -e "  ${INFO} Docs: https://logstrata.io/docs"
+  echo -e "  ${INFO} Issues: https://github.com/Rishav-sy/LogStrata/issues"
+  echo ""
+}
+
+main() {
+  header
+  check_requirements
+  add_helm_repo
+  create_namespace
+  install_crds
+  install_chart
+  verify_install
+  print_summary
+}
+
+main "$@"

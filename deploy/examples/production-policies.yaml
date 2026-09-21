@@ -1,0 +1,172 @@
+# ===========================================================================
+# LogStrata — Real-World Deployment Examples
+# ===========================================================================
+# These manifests demonstrate production-grade usage of the LogStrata CRDs.
+# Apply to a cluster with LogStrata installed:
+#   kubectl apply -f deploy/examples/
+# ===========================================================================
+
+---
+# Example 1: E-Commerce Flash Sale Autoscaling
+# Scale the "storefront" deployment based on checkout endpoint traffic.
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: ecommerce-flash-sale
+  namespace: production
+  labels:
+    app.kubernetes.io/managed-by: logstrata
+    logstrata.io/tier: production
+  annotations:
+    logstrata.io/description: "Scales the checkout service during flash sale events"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: storefront
+  scaling:
+    minReplicas: 5
+    maxReplicas: 200
+    targetRPSPerPod: 150
+    headroomFactor: 1.3       # 30% headroom above observed peak
+    scaleUpThreshold: 0.75    # Scale up when utilisation > 75%
+    scaleDownThreshold: 0.25  # Scale down when utilisation < 25%
+    cooldownSeconds: 45       # Wait 45s between scale-down decisions
+  # Observed log patterns that indicate traffic spikes
+  logPatterns:
+    - name: "checkout-spike"
+      pattern: '"path":"/checkout"'
+      weight: 2.0             # Count checkout hits double
+    - name: "payment-gateway"
+      pattern: '"path":"/api/payment"'
+      weight: 1.5
+
+---
+# Example 2: Financial Services API — Conservative Scaling
+# Tight control with high headroom for compliance SLAs.
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: finserv-api-policy
+  namespace: banking
+  labels:
+    app.kubernetes.io/managed-by: logstrata
+    logstrata.io/tier: critical
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: banking-api
+  scaling:
+    minReplicas: 10           # Always maintain 10 replicas minimum
+    maxReplicas: 50
+    targetRPSPerPod: 80       # Conservative: lower RPS per pod for compliance SLAs
+    headroomFactor: 1.5       # 50% headroom — never let capacity fall close to demand
+    scaleUpThreshold: 0.60    # Aggressive: scale up at 60% utilisation
+    scaleDownThreshold: 0.20  # Conservative: only scale down below 20%
+    cooldownSeconds: 120      # Long cooldown: avoid thrashing in volatile markets
+
+---
+# Example 3: DDoS + Brute-Force Threat Policy
+# Auto-block attacking IPs and lock scale-down during active attacks.
+apiVersion: security.logstrata.io/v1alpha1
+kind: LogThreatPolicy
+metadata:
+  name: ddos-brute-force-defense
+  namespace: production
+  labels:
+    app.kubernetes.io/managed-by: logstrata
+    logstrata.io/tier: security
+  annotations:
+    logstrata.io/description: "Blocks DDoS and brute-force attackers via NetworkPolicy"
+spec:
+  targetRef:
+    kind: Ingress
+    name: production-ingress
+    namespace: production
+  detection:
+    # Attack signal windows
+    rateWindowSeconds: 5
+    # Brute-force: >15 auth failures from same IP in 5s
+    bruteForce401Threshold: 15
+    # Error storm: >25% 5xx rate triggers alert
+    errorSpikeThreshold: 0.25
+    # DDoS: >8000 RPS from any single IP triggers block
+    ddosRPSThreshold: 8000
+    # Credential stuffing: >50 403s from same IP in 5s
+    forbiddenThreshold: 50
+  response:
+    # Auto-inject NetworkPolicy to isolate attacker IPs
+    injectNetworkPolicy: true
+    # How long to block an IP (TTL)
+    blockDurationMinutes: 60
+    # Lock scale-down while attack is in progress
+    scaleDownLock: true
+    # Alert via webhook (Slack/PagerDuty/Discord)
+    notifyWebhook: ""         # Set to your webhook URL
+    # Generate Nginx blocklist ConfigMap for legacy proxies
+    generateNginxBlocklist: true
+    nginxBlocklistConfigMap: "logstrata-blocked-ips"
+
+---
+# Example 4: Microservices Mesh — Per-Service Policies
+# Different scaling policies for frontend vs backend vs workers.
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: frontend-policy
+  namespace: microservices
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-frontend
+  scaling:
+    minReplicas: 3
+    maxReplicas: 50
+    targetRPSPerPod: 200      # Frontends can handle more — mostly static
+    headroomFactor: 1.2
+    scaleUpThreshold: 0.80
+    scaleDownThreshold: 0.30
+    cooldownSeconds: 30
+
+---
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: api-worker-policy
+  namespace: microservices
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-worker
+  scaling:
+    minReplicas: 2
+    maxReplicas: 30
+    targetRPSPerPod: 50       # Workers do heavier compute: lower RPS threshold
+    headroomFactor: 1.4
+    scaleUpThreshold: 0.70
+    scaleDownThreshold: 0.15
+    cooldownSeconds: 90       # Workers take longer to drain: longer cooldown
+
+---
+# Example 5: Gaming Backend — Aggressive Scale-Up for Player Onboarding Events
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: gaming-match-server
+  namespace: gaming
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: matchmaking-service
+  scaling:
+    minReplicas: 5
+    maxReplicas: 500          # Extreme: new game drops can spike 100x
+    targetRPSPerPod: 100
+    headroomFactor: 2.0       # 100% headroom: gaming users are impatient
+    scaleUpThreshold: 0.50    # Scale up early at 50% to prevent queue buildup
+    scaleDownThreshold: 0.10  # Scale down slowly after event ends
+    cooldownSeconds: 300      # 5-minute cooldown after scale-down

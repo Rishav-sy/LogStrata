@@ -1,119 +1,237 @@
-# Default values for logstrata.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# ==============================================================================
+# LogStrata Helm Chart — values.yaml (Production Defaults)
+# ==============================================================================
+# Override any value with:
+#   helm install logstrata charts/logstrata -f my-overrides.yaml
+# or:
+#   helm install logstrata charts/logstrata --set daemon.image.tag=v1.2.3
 
-replicaCount: 1
-
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "alpine"
-
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+# ──────────────────────────────────────────────────────────────────────────────
+# Global image pull secrets (for private registries)
+# ──────────────────────────────────────────────────────────────────────────────
+imagePullSecrets: []
+# - name: my-registry-secret
 
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Generic Service (for dashboard/UI component if deployed)
+# ──────────────────────────────────────────────────────────────────────────────
 service:
   type: ClusterIP
   port: 80
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Ingress (optional, for exposing the dashboard UI externally)
+# ──────────────────────────────────────────────────────────────────────────────
 ingress:
   enabled: false
   className: ""
   annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: chart-example.local
+    - host: logstrata.example.com
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Legacy/boilerplate values required by the default deployment.yaml template
+# ──────────────────────────────────────────────────────────────────────────────
+replicaCount: 1
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines or set them in your values.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
+nodeSelector: {}
+tolerations: []
+affinity: {}
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
+  maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
+# Top-level image (for the boilerplate deployment.yaml — not used by daemon/controller)
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "alpine"
 
-tolerations: []
-
-affinity: {}
-
-# Environment variables for Supabase connection
+# Environment variables injected into the dashboard deployment (deployment.yaml)
 supabase:
-  url: "https://gzskxpbujufdyanhxuxq.supabase.co"
-  anonKey: "sb_publishable_mw9EgPbT3Dv9kECYp02lDA__0nVSGsQ"
+  url: "https://placeholder.supabase.co"
+  anonKey: "placeholder-key"
 
-# LogStrata DaemonSet agent configuration
+# ──────────────────────────────────────────────────────────────────────────────
+# Service Account
+# ──────────────────────────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LogStrata DaemonSet — Edge Log Processor
+# Runs on EVERY node to tail /var/log/pods and emit scale/threat signals.
+# ──────────────────────────────────────────────────────────────────────────────
 daemon:
   enabled: true
-  image:
-    repository: rishavsy/logstrata-daemon
-    tag: latest
-    pullPolicy: IfNotPresent
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
 
-# LogStrata Kubernetes operator controller configuration
+  image:
+    repository: ghcr.io/rishav-sy/logstrata-daemon
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+
+  # CLI flags passed to the daemon binary
+  args:
+    listenAddr: ":8080"
+    minReplicas: 3
+    maxReplicas: 50
+    targetRPSPerPod: 150
+
+  # Resource envelope — keep memory footprint < 20MB per node
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+  # Security hardening (distroless nonroot already enforces non-root)
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65532
+    capabilities:
+      drop: ["ALL"]
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+
+  # Tolerations: schedule on all nodes including control-plane
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+    - operator: Exists
+      effect: NoExecute
+
+  # Node selector (leave empty to schedule on all nodes)
+  nodeSelector: {}
+
+  # Priority class (use system-node-critical for DaemonSets)
+  priorityClassName: "system-node-critical"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LogStrata Controller — Kubernetes Operator
+# Reconciles LogAutoscalerPolicy CRDs and patches Deployment replicas.
+# ──────────────────────────────────────────────────────────────────────────────
 controller:
   enabled: true
-  replicaCount: 1
-  image:
-    repository: rishavsy/logstrata-controller
-    tag: latest
-    pullPolicy: IfNotPresent
-  resources:
-    limits:
-      cpu: 250m
-      memory: 256Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
+  replicaCount: 2  # HA: run 2 replicas with leader election
 
+  image:
+    repository: ghcr.io/rishav-sy/logstrata-controller
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+
+  args:
+    listenAddr: ":8081"
+
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65532
+    capabilities:
+      drop: ["ALL"]
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8081"
+    prometheus.io/path: "/metrics"
+
+  # Anti-affinity: spread controller replicas across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: controller
+            topologyKey: kubernetes.io/hostname
+
+  nodeSelector: {}
+  tolerations: []
+
+  # Leader election (for HA deployments with replicaCount > 1)
+  leaderElection:
+    enabled: true
+    namespace: ""  # defaults to Release.Namespace
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Prometheus ServiceMonitor (requires prometheus-operator)
+# ──────────────────────────────────────────────────────────────────────────────
+serviceMonitor:
+  enabled: false
+  namespace: ""  # defaults to Release.Namespace
+  interval: "15s"
+  scrapeTimeout: "10s"
+  labels: {}
+  # Release: prometheus  # match your Prometheus operator label selector
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Network Policy — restrict daemon/controller egress/ingress
+# ──────────────────────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: false
+  # When enabled, only allows:
+  #   - Ingress on :8080/:8081 from within the namespace
+  #   - Egress to kube-apiserver
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pod Disruption Budgets
+# ──────────────────────────────────────────────────────────────────────────────
+podDisruptionBudget:
+  controller:
+    enabled: true
+    minAvailable: 1
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LogStrata Autoscaler Policy (applied as a CRD via post-install hook)
+# ──────────────────────────────────────────────────────────────────────────────
+policy:
+  enabled: false  # Set to true to auto-create a LogAutoscalerPolicy on install
+  targetDeployment: "my-app"
+  targetNamespace: "default"
+  minReplicas: 3
+  maxReplicas: 50
+  targetRPSPerPod: 150
+  scaleUpThreshold: 0.8
+  scaleDownThreshold: 0.3
+  cooldownSeconds: 60
+  headroomFactor: 1.25
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Kubernetes Admission Webhook (Validation & Mutation)
+# ──────────────────────────────────────────────────────────────────────────────
+webhook:
+  enabled: false
+  failurePolicy: Fail
+  service:
+    port: 443
+    targetPort: 9443

@@ -1,0 +1,114 @@
+{{- if .Values.networkPolicy.enabled }}
+# ─── Daemon NetworkPolicy ─────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "logstrata.fullname" . }}-daemon-netpol
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+    app.kubernetes.io/component: daemon
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "logstrata.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: daemon
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus scraping from within the namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow scraping from monitoring namespace (Prometheus Operator)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow DNS resolution
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow communication to the kube-apiserver
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # Allow reporting to the controller
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "logstrata.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: controller
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+# ─── Controller NetworkPolicy ─────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "logstrata.fullname" . }}-controller-netpol
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "logstrata.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Accept status/metrics from within namespace only
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+      ports:
+        - protocol: TCP
+          port: 8081
+    # Accept from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8081
+    # Accept from daemon pods for stream reporting
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "logstrata.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: daemon
+  egress:
+    # Allow DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow kube-apiserver (for patching deployments + CRD watch)
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # Allow outbound webhooks (Slack / PagerDuty notifications)
+    - ports:
+        - protocol: TCP
+          port: 443
+{{- end }}

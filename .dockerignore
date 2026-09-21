@@ -1,12 +1,54 @@
-node_modules
-.next
-.git
-.agents
-.vscode
-.wrangler
-*.log
-*.pptx
-*.py
-*.gif
+# Binaries built by Go
+/bin/
+/out/
+/dist/
+
+# Next.js build output
+/.next/
+/out/
+
+# Node modules
+/node_modules/
+
+# Go test cache
+/tmp/
+
+# Environment files (contain secrets)
+.env
 .env.local
-logstrata_migration.md
+.env.production
+.env*.local
+
+# Docker layer cache
+*.tar
+
+# Go module download cache
+/vendor/
+
+# IDE files
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage output
+coverage.out
+coverage.html
+
+# Air (live reload) temp files
+.air/
+tmp/
+
+# Wrangler (Cloudflare) cache
+.wrangler/
+
+# Helm chart lock
+charts/*/charts/
+charts/*/*.lock
+
+# GitHub Actions artifacts
+.act/

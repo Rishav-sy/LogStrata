@@ -1,0 +1,14 @@
+---
+# Grafana provisioning: dashboards
+apiVersion: 1
+
+providers:
+  - name: LogStrata
+    orgId: 1
+    folder: LogStrata
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
