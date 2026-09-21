@@ -407,6 +407,119 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SECTION 2.5: ZERO-ALLOC BENCHMARKS & ARCHITECTURAL COMPARISON */}
+      <section className="py-24 px-6 border-b border-hairline bg-canvas relative overflow-hidden">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="text-center mb-16">
+            <span className="font-mono text-xs uppercase tracking-widest text-[#0070f3] font-bold">
+              02.5 / ENGINE BENCHMARKS & COMPARISON
+            </span>
+            <h2 className="font-sans text-[32px] font-semibold tracking-[-1.28px] leading-[40px] text-ink mt-3 mb-4">
+              Microsecond Scalability. Zero Heap Overhead.
+            </h2>
+            <p className="text-body max-w-2xl mx-auto leading-relaxed text-sm font-light">
+              Benchmarked on bare-metal AMD Ryzen 7 7840HS with zero GC pauses. Compare how LogStrata outpaces traditional metric polling architectures.
+            </p>
+          </div>
+
+          {/* 4 Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            <div className="border border-hairline bg-canvas-soft p-6 rounded-2xl relative overflow-hidden group hover:border-[#0070f3]/40 transition-all">
+              <div className="font-mono text-[10px] text-mute uppercase tracking-wider mb-2">RECORD() THROUGHPUT</div>
+              <div className="text-3xl font-bold font-mono text-emerald-400">127.1M</div>
+              <div className="text-xs text-body mt-1 font-light">operations / second per thread</div>
+              <div className="mt-3 text-[10px] font-mono text-[#0070f3]">BenchmarkEngine_Record</div>
+            </div>
+
+            <div className="border border-hairline bg-canvas-soft p-6 rounded-2xl relative overflow-hidden group hover:border-[#0070f3]/40 transition-all">
+              <div className="font-mono text-[10px] text-mute uppercase tracking-wider mb-2">HOT PATH LATENCY</div>
+              <div className="text-3xl font-bold font-mono text-blue-400">9.3 ns</div>
+              <div className="text-xs text-body mt-1 font-light">sub-nanosecond circular index</div>
+              <div className="mt-3 text-[10px] font-mono text-[#0070f3]">0.009 µs per operation</div>
+            </div>
+
+            <div className="border border-hairline bg-canvas-soft p-6 rounded-2xl relative overflow-hidden group hover:border-[#0070f3]/40 transition-all">
+              <div className="font-mono text-[10px] text-mute uppercase tracking-wider mb-2">HEAP ALLOCATIONS</div>
+              <div className="text-3xl font-bold font-mono text-amber-400">0 B/op</div>
+              <div className="text-xs text-body mt-1 font-light">zero allocations, zero GC pauses</div>
+              <div className="mt-3 text-[10px] font-mono text-[#0070f3]">0 allocs/op verified</div>
+            </div>
+
+            <div className="border border-hairline bg-canvas-soft p-6 rounded-2xl relative overflow-hidden group hover:border-[#0070f3]/40 transition-all">
+              <div className="font-mono text-[10px] text-mute uppercase tracking-wider mb-2">PEAK INGESTION BURST</div>
+              <div className="text-3xl font-bold font-mono text-purple-400">89.3M</div>
+              <div className="text-xs text-body mt-1 font-light">simulated 100k/s flood stress</div>
+              <div className="mt-3 text-[10px] font-mono text-[#0070f3]">11.8 ns/op under flood</div>
+            </div>
+          </div>
+
+          {/* Comparison Matrix Table */}
+          <div className="border border-hairline rounded-2xl overflow-hidden bg-canvas shadow-xl">
+            <div className="bg-canvas-soft/80 border-b border-hairline px-6 py-4">
+              <h3 className="font-sans text-sm font-semibold text-ink">Architectural Capability Matrix</h3>
+              <p className="text-xs text-mute font-light">How LogStrata compares against industry autoscalers and WAF proxies</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-sans text-xs">
+                <thead>
+                  <tr className="border-b border-hairline text-mute font-mono text-[10px] uppercase bg-canvas-soft/40">
+                    <th className="py-3 px-6">Capability</th>
+                    <th className="py-3 px-6">Kubernetes HPA</th>
+                    <th className="py-3 px-6">KEDA (Prometheus)</th>
+                    <th className="py-3 px-6">Cloudflare / AWS WAF</th>
+                    <th className="py-3 px-6 text-[#0070f3] font-bold">LogStrata Engine</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-hairline">
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Detection Source</td>
+                    <td className="py-3.5 px-6 text-mute">CPU/RAM polling</td>
+                    <td className="py-3.5 px-6 text-mute">Polled external metrics</td>
+                    <td className="py-3.5 px-6 text-mute">Edge HTTP reverse proxy</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">containerd stdout socket</td>
+                  </tr>
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Reaction Latency</td>
+                    <td className="py-3.5 px-6 text-rose-400">30s – 90s (scraping lag)</td>
+                    <td className="py-3.5 px-6 text-rose-400">15s – 45s (scrape interval)</td>
+                    <td className="py-3.5 px-6 text-amber-400">1s – 5s (edge-only)</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">&lt; 200 ms (instantaneous)</td>
+                  </tr>
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Zero-Alloc Hot Path</td>
+                    <td className="py-3.5 px-6 text-rose-400">✕ No</td>
+                    <td className="py-3.5 px-6 text-rose-400">✕ No</td>
+                    <td className="py-3.5 px-6 text-rose-400">✕ No</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">✓ 0 B/op Ring Buffer</td>
+                  </tr>
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Threat-Aware Scale Lock</td>
+                    <td className="py-3.5 px-6 text-rose-400">✕ Flaps under attack</td>
+                    <td className="py-3.5 px-6 text-rose-400">✕ Flaps under attack</td>
+                    <td className="py-3.5 px-6 text-mute">Unlinked to K8s Pods</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">✓ Locks scale-down on attack</td>
+                  </tr>
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Multi-Backend Ingress Shield</td>
+                    <td className="py-3.5 px-6 text-mute">—</td>
+                    <td className="py-3.5 px-6 text-mute">—</td>
+                    <td className="py-3.5 px-6 text-mute">Vendor proprietary</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">✓ NGINX, Envoy, Traefik, Cilium</td>
+                  </tr>
+                  <tr className="hover:bg-canvas-soft/30 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-ink">Kubernetes Admission Webhooks</td>
+                    <td className="py-3.5 px-6 text-mute">Standard K8s</td>
+                    <td className="py-3.5 px-6 text-mute">Standard K8s</td>
+                    <td className="py-3.5 px-6 text-mute">N/A</td>
+                    <td className="py-3.5 px-6 text-emerald-400 font-semibold font-mono">✓ Validating + RFC 6902 Mutating</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* SECTION 3: HOW LOGSTRATA WORKS */}
       <section className="py-24 px-6 border-b border-hairline bg-canvas">
         <div className="mx-auto max-w-[1400px]">

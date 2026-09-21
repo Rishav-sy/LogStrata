@@ -132,6 +132,39 @@ spec:
 	return yaml
 }
 
+// GenerateCiliumClusterwideNetworkPolicy creates a cluster-wide eBPF policy to drop packets at node ingress.
+func GenerateCiliumClusterwideNetworkPolicy(policyName string, blockedIPs []string) string {
+	yaml := fmt.Sprintf(`apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "%s"
+  labels:
+    app.kubernetes.io/managed-by: "logstrata"
+    security.logstrata.io/layer: "ebpf-xdp"
+spec:
+  nodeSelector:
+    matchLabels: {}
+  ingressDeny:
+    - fromCIDR:`, policyName)
+
+	for _, ip := range blockedIPs {
+		yaml += fmt.Sprintf("\n        - \"%s/32\"", ip)
+	}
+
+	return yaml
+}
+
+// GenerateEbpfXdpMapConfig creates a BPF map specification for direct kernel driver XDP_DROP.
+func GenerateEbpfXdpMapConfig(mapName string, blockedIPs []string) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("# LogStrata eBPF XDP Drop Table (%s)\n", mapName))
+	b.WriteString("# Format: <IP_CIDR> -> ACTION (1 = XDP_DROP)\n")
+	for _, ip := range blockedIPs {
+		b.WriteString(fmt.Sprintf("%s/32: 1\n", ip))
+	}
+	return b.String()
+}
+
 func indent(text string, spaces int) string {
 	pad := strings.Repeat(" ", spaces)
 	lines := strings.Split(text, "\n")

@@ -47,6 +47,7 @@ type ControllerServer struct {
 	Config     ControllerConfig
 	Reconciler *controller.PolicyReconciler
 	Notifier   *notifier.WebhookDispatcher
+	Watchdog   *controller.CircuitBreakerWatchdog
 	Mux        *http.ServeMux
 
 	mu             sync.RWMutex
@@ -76,6 +77,7 @@ func NewControllerServer(cfg ControllerConfig) *ControllerServer {
 	cs := &ControllerServer{
 		Config:         cfg,
 		Reconciler:     controller.NewPolicyReconciler(defaultSpec),
+		Watchdog:       controller.NewCircuitBreakerWatchdog(controller.DefaultWatchdogConfig()),
 		Mux:            http.NewServeMux(),
 		policies:       make(map[string]controller.LogAutoscalerPolicySpec),
 		activeReplicas: make(map[string]int),
@@ -117,6 +119,7 @@ func (cs *ControllerServer) handleReconciliations(w http.ResponseWriter, r *http
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":             "RUNNING",
 		"active_policies":    len(cs.policies),
+		"watchdog":           cs.Watchdog.CheckLiveness(),
 		"recent_evaluations": cs.history,
 	})
 }
@@ -230,9 +233,19 @@ func (cs *ControllerServer) StartReconciliationLoop() {
 			case <-ticker.C:
 				telemetry, err := cs.FetchTelemetry(client)
 				if err != nil {
-					// Daemon may be restarting or not ready; skip cycle
+					action := cs.Watchdog.RecordFailure(err)
+					if action.YieldToHPA {
+						log.Printf("[FAILSAFE CIRCUIT BREAKER] %s (Failures: %d)", action.Reason, action.ConsecutiveFailures)
+					}
 					continue
 				}
+
+				cs.Watchdog.RecordHeartbeat()
+				if cs.Watchdog.ShouldYieldToHPA() {
+					log.Println("[FAILSAFE CIRCUIT BREAKER] Yielding scaling control to native HPA; ignoring replica adjustments")
+					continue
+				}
+
 				cs.Step(telemetry)
 			}
 		}

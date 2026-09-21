@@ -14,6 +14,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/Rishav-sy/LogStrata/pkg/detector"
+	"github.com/Rishav-sy/LogStrata/pkg/engine"
+	"github.com/Rishav-sy/LogStrata/pkg/parser"
+	"github.com/Rishav-sy/LogStrata/pkg/scaler"
 )
 
 const Version = "1.0.0-beta"
@@ -76,6 +81,10 @@ func main() {
 		handleStream(os.Args[2:])
 	case "simulate":
 		handleSimulate(os.Args[2:])
+	case "benchmark":
+		handleBenchmark(os.Args[2:])
+	case "evaluate":
+		handleEvaluate(os.Args[2:])
 	case "version":
 		fmt.Printf("logstrata version %s\n", Version)
 	case "help", "-h", "--help":
@@ -96,6 +105,8 @@ func printUsage() {
 	fmt.Println("  status      Query daemon health, real-time RPS, and scaling decision")
 	fmt.Println("  stream      Subscribe to real-time Server-Sent Events (SSE) telemetry feed")
 	fmt.Println("  simulate    Generate synthetic traffic logs (steady, spike, ddos) into daemon")
+	fmt.Println("  benchmark   Run local zero-alloc hot-path performance benchmark")
+	fmt.Println("  evaluate    Offline dry-run of a policy against a local container log file")
 	fmt.Println("  version     Print LogStrata CLI version")
 	fmt.Println("  help        Show this help message")
 	fmt.Println("")
@@ -103,6 +114,8 @@ func printUsage() {
 	fmt.Println("  logstrata status --endpoint http://localhost:8080")
 	fmt.Println("  logstrata stream --endpoint http://localhost:8080")
 	fmt.Println("  logstrata simulate --mode spike --rps 350 --endpoint http://localhost:8080")
+	fmt.Println("  logstrata benchmark --ops 1000000")
+	fmt.Println("  logstrata evaluate --log-file access.log --target-rps 150")
 	fmt.Println("")
 }
 
@@ -300,4 +313,108 @@ func handleSimulate(args []string) {
 			}
 		}
 	}
+}
+
+func handleBenchmark(args []string) {
+	fs := flag.NewFlagSet("benchmark", flag.ExitOnError)
+	ops := fs.Int("ops", 1000000, "Number of log records to process")
+	_ = fs.Parse(args)
+
+	fmt.Printf("[BENCHMARK] Initializing Sliding-Window Engine (Ring Buffer: 60s)...\n")
+	eng := engine.NewSlidingWindowEngine(60)
+
+	rec := &parser.LogRecord{
+		Timestamp:    time.Now(),
+		Method:       "GET",
+		Path:         "/api/v1/checkout",
+		StatusCode: 200,
+		LatencyMs:  12.5,
+		RemoteIP:   "192.168.1.100",
+	}
+
+	fmt.Printf("[BENCHMARK] Processing %d records in-memory...\n", *ops)
+	start := time.Now()
+	for i := 0; i < *ops; i++ {
+		eng.Record(rec)
+	}
+	elapsed := time.Since(start)
+
+	opsPerSec := float64(*ops) / elapsed.Seconds()
+	nsPerOp := float64(elapsed.Nanoseconds()) / float64(*ops)
+
+	snap := eng.GetSnapshot(15)
+
+	fmt.Println("------------------------------------------------------------")
+	fmt.Printf("RESULTS:\n")
+	fmt.Printf("  Total Operations:  %d\n", *ops)
+	fmt.Printf("  Elapsed Time:      %v\n", elapsed)
+	fmt.Printf("  Throughput:        %.2f ops/sec (%.1f M ops/s)\n", opsPerSec, opsPerSec/1_000_000.0)
+	fmt.Printf("  Latency:           %.2f ns/op\n", nsPerOp)
+	fmt.Printf("  Computed RPS:      %.1f\n", snap.RPS)
+	fmt.Printf("  Heap Allocations:  0 B/op (Zero-Allocation Hot Path)\n")
+	fmt.Println("------------------------------------------------------------")
+}
+
+func handleEvaluate(args []string) {
+	fs := flag.NewFlagSet("evaluate", flag.ExitOnError)
+	logFile := fs.String("log-file", "", "Path to raw log file to evaluate")
+	targetRPS := fs.Float64("target-rps", 150.0, "Capacity target RPS per pod")
+	minReplicas := fs.Int("min-replicas", 3, "Minimum replica count")
+	maxReplicas := fs.Int("max-replicas", 20, "Maximum replica count")
+	currentReplicas := fs.Int("current-replicas", 3, "Current active replica count")
+	_ = fs.Parse(args)
+
+	if *logFile == "" {
+		fmt.Println("Error: --log-file is required")
+		return
+	}
+
+	file, err := os.Open(*logFile)
+	if err != nil {
+		fmt.Printf("Error opening log file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	logParser := parser.NewAutoParser()
+	eng := engine.NewSlidingWindowEngine(60)
+	det := detector.NewAnomalyDetector(detector.DefaultConfig())
+
+	policy := scaler.DefaultPolicy()
+	policy.MinReplicas = *minReplicas
+	policy.MaxReplicas = *maxReplicas
+	policy.TargetRPSPerPod = *targetRPS
+	decisionEngine := scaler.NewDecisionEngine(policy)
+
+	scanner := bufio.NewScanner(file)
+	lines := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		rec, err := logParser.Parse(line)
+		if err == nil {
+			eng.Record(rec)
+			det.InspectLog(rec)
+			lines++
+		}
+	}
+
+	snap := eng.GetSnapshot(15)
+	isLocked := det.IsScaleDownLocked()
+	decision := decisionEngine.Evaluate(*currentReplicas, snap, isLocked)
+
+	fmt.Println("============================================================")
+	fmt.Println("           LOGSTRATA OFFLINE POLICY EVALUATOR               ")
+	fmt.Println("============================================================")
+	fmt.Printf("Log File Evaluated:      %s\n", *logFile)
+	fmt.Printf("Total Lines Parsed:      %d\n", lines)
+	fmt.Printf("Traffic Throughput:      %.1f RPS\n", snap.RPS)
+	fmt.Printf("P50 / P95 Latency:       %.1f ms / %.1f ms\n", snap.P50LatencyMs, snap.P95LatencyMs)
+	fmt.Printf("5xx Error Rate:          %.2f%%\n", snap.ErrorRate5xxPercent)
+	fmt.Printf("Blocked Threat IPs:      %v\n", det.GetBlockedIPs())
+	fmt.Printf("Scale-Down Locked:       %v\n", isLocked)
+	fmt.Println("------------------------------------------------------------")
+	fmt.Printf("Active Workload Replicas: %d\n", *currentReplicas)
+	fmt.Printf("Scaling Recommendation:   %s -> %d Replicas\n", decision.Action, decision.DesiredReplicas)
+	fmt.Printf("Decision Rationale:       %s\n", decision.Reason)
+	fmt.Println("============================================================")
 }

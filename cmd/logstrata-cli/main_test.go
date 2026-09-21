@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -31,7 +32,6 @@ func TestCLIStatusHandler(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Verify handleStatus executes without crashing
 	handleStatus([]string{"--endpoint", ts.URL})
 }
 
@@ -39,4 +39,34 @@ func TestCLIVersion(t *testing.T) {
 	if Version == "" {
 		t.Fatal("Expected non-empty version")
 	}
+}
+
+func TestCLIBenchmark(t *testing.T) {
+	// Run with 10k ops in test mode
+	handleBenchmark([]string{"--ops", "10000"})
+}
+
+func TestCLIEvaluate(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-eval-*.log")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	sampleLogs := `{"method":"GET","path":"/api/products","status":200,"latency_ms":15.0,"client_ip":"192.168.1.1"}
+{"method":"GET","path":"/api/checkout","status":200,"latency_ms":30.0,"client_ip":"192.168.1.2"}
+{"method":"POST","path":"/login","status":401,"latency_ms":5.0,"client_ip":"185.220.101.5"}
+`
+	if _, err := tmpFile.WriteString(sampleLogs); err != nil {
+		t.Fatalf("failed to write logs: %v", err)
+	}
+	tmpFile.Close()
+
+	handleEvaluate([]string{
+		"--log-file", tmpFile.Name(),
+		"--target-rps", "100",
+		"--min-replicas", "2",
+		"--max-replicas", "10",
+		"--current-replicas", "2",
+	})
 }
