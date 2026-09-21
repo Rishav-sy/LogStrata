@@ -230,6 +230,7 @@ export function GlobeCdn({
         globeRef.current = null
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Update globe dynamically when dependencies change without recreating the WebGL context

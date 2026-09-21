@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Geist } from "next/font/google";
+import { JetBrains_Mono, Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Header } from "@/components/Header";
 import Link from "next/link";

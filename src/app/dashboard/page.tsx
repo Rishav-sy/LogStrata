@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
@@ -76,11 +76,6 @@ interface CustomTemplate {
 export default function Dashboard() {
   const { resolvedTheme } = useTheme();
   const router = useRouter();
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -190,11 +185,9 @@ export default function Dashboard() {
     };
   }, [router]);
 
-  const isLight = mounted && resolvedTheme === "light";
-
   // Refs for chart history
   const telemetryHistory = useRef<TelemetryPoint[]>(
-    Array.from({ length: 60 }, (_, i) => ({
+    Array.from({ length: 60 }, () => ({
       rps: 1.6,
       cpu: 25,
       errors: 0.2,
@@ -210,11 +203,15 @@ export default function Dashboard() {
   const prevRequestRateRef = useRef(100);
   const prevCpuRef = useRef(25);
   const prevDbFailureRef = useRef(false);
-  const lastScaleTimeRef = useRef(0);
+
+  const isLogPausedRef = useRef(isLogPaused);
+  useEffect(() => {
+    isLogPausedRef.current = isLogPaused;
+  }, [isLogPaused]);
 
   // --- Helper: Add Logs Client Side ---
-  const addTerminalLog = (level: TerminalLog["level"], service: string, message: string) => {
-    if (isLogPaused) return;
+  const addTerminalLog = useCallback((level: TerminalLog["level"], service: string, message: string) => {
+    if (isLogPausedRef.current) return;
     const timeStr = new Date().toLocaleTimeString();
     setTerminalLogs((prev) => {
       const updated = [
@@ -229,10 +226,10 @@ export default function Dashboard() {
       ];
       return updated.slice(-150); // Keep last 150
     });
-  };
+  }, []);
 
   // --- Helper: Add Timeline Event ---
-  const addTimelineEvent = (text: string, type: TimelineEvent["type"]) => {
+  const addTimelineEvent = useCallback((text: string, type: TimelineEvent["type"]) => {
     const timeStr = new Date().toLocaleTimeString();
     setTimelineEvents((prev) => [
       ...prev,
@@ -243,10 +240,10 @@ export default function Dashboard() {
         type,
       },
     ]);
-  };
+  }, []);
 
   // --- Helper: Manage Alerts ---
-  const triggerAlert = (level: SystemAlert["level"], message: string) => {
+  const triggerAlert = useCallback((level: SystemAlert["level"], message: string) => {
     const timeStr = new Date().toLocaleTimeString();
     setActiveAlerts((prev) => {
       if (prev.some((a) => a.message === message)) return prev;
@@ -254,16 +251,16 @@ export default function Dashboard() {
       addTerminalLog(level === "CRITICAL" ? "CRITICAL" : "ERROR", "alert-manager", `Triggered Alert: ${message}`);
       return [...prev, { id: Math.random().toString(), time: timeStr, level, message }];
     });
-  };
+  }, [addTerminalLog, addTimelineEvent]);
 
-  const resolveAlert = (message: string) => {
+  const resolveAlert = useCallback((message: string) => {
     setActiveAlerts((prev) => {
       if (!prev.some((a) => a.message === message)) return prev;
       addTimelineEvent(`ALERT RESOLVED: ${message}`, "INFO");
       addTerminalLog("INFO", "alert-manager", `Alert resolved: ${message}`);
       return prev.filter((a) => a.message !== message);
     });
-  };
+  }, [addTerminalLog, addTimelineEvent]);
 
   const handleSaveTemplate = () => {
     if (!templateName.trim()) return;
@@ -838,7 +835,7 @@ export default function Dashboard() {
     trafficMode, requestRate, dbFailure, apiFailure, authFailure, timeoutFailure,
     serviceCrash, containers, autoScalingEnabled, activeAnomaly, leakRate,
     sliderCpu, sliderMemory, sliderDisk, sliderNetwork, userOverridden, activeScenario,
-    addTerminalLog, memory, resolveAlert, scaleDownThreshold, scaleUpThreshold, triggerAlert,
+    addTerminalLog, addTimelineEvent, memory, resolveAlert, scaleDownThreshold, scaleUpThreshold, triggerAlert,
     loading
   ]);
 
@@ -941,6 +938,12 @@ export default function Dashboard() {
 
           {/* User & Alert Ticker */}
           <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
+            {user?.email && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-hairline bg-canvas-soft text-[11px] font-mono text-body">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="truncate max-w-[180px]">{user.email}</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               {activeAlerts.length === 0 ? (

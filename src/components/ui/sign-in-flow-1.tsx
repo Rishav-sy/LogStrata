@@ -232,7 +232,6 @@ const DotMatrix: React.FC<DotMatrixProps> = ({
 const ShaderMaterial = ({
   source,
   uniforms,
-  maxFps = 60,
 }: {
   source: string;
   hovered?: boolean;
@@ -325,6 +324,7 @@ const ShaderMaterial = ({
     });
 
     return materialObject;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size.width, size.height, source]);
 
   return (

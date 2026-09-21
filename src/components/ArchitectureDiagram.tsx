@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
 
 export function ArchitectureDiagram() {
   const [currentState, setCurrentState] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advanceRef = useRef<(state: number) => void>(() => {});
 
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -18,13 +19,9 @@ export function ArchitectureDiagram() {
 
   const isLight = mounted && resolvedTheme === "light";
 
-  const setSimulationState = (state: number) => {
-    setCurrentState(state);
-  };
-
-  const advanceSimulation = (state: number) => {
+  const advanceSimulation = useCallback((state: number) => {
     const nextState = (state + 1) % 7;
-    setSimulationState(nextState);
+    setCurrentState(nextState);
 
     const durations = [
       6000, // State 0 (Normal)
@@ -36,12 +33,16 @@ export function ArchitectureDiagram() {
       6000, // State 6 (Stabilized)
     ];
 
-    timerRef.current = setTimeout(() => advanceSimulation(nextState), durations[nextState]);
-  };
+    timerRef.current = setTimeout(() => advanceRef.current(nextState), durations[nextState]);
+  }, []);
+
+  useEffect(() => {
+    advanceRef.current = advanceSimulation;
+  }, [advanceSimulation]);
 
   useEffect(() => {
     // Start automatic loop after 4 seconds of initial idle normal state
-    timerRef.current = setTimeout(() => advanceSimulation(0), 4000);
+    timerRef.current = setTimeout(() => advanceRef.current(0), 4000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -51,8 +52,8 @@ export function ArchitectureDiagram() {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
-    setSimulationState(1);
-    timerRef.current = setTimeout(() => advanceSimulation(1), 4000);
+    setCurrentState(1);
+    timerRef.current = setTimeout(() => advanceRef.current(1), 4000);
   };
 
   // State-based content definitions
@@ -128,12 +129,6 @@ export function ArchitectureDiagram() {
       : "rate: 18 evts/s";
 
   // Observability metrics
-  const throughputText =
-    currentState === 0
-      ? "140 requests/sec"
-      : currentState === 6
-      ? "162 requests/sec"
-      : "1.2k requests/sec";
 
   const latencyText =
     currentState === 0
@@ -229,24 +224,6 @@ export function ArchitectureDiagram() {
       ? "0.98s"
       : "0.82s";
 
-  const widgetLatencyBarWidth =
-    currentState === 0
-      ? "35%"
-      : currentState === 1
-      ? "65%"
-      : currentState === 2 || currentState === 3 || currentState === 4
-      ? "90%"
-      : currentState === 5
-      ? "45%"
-      : "30%";
-
-  const widgetLatencyBarClass =
-    currentState === 0 || currentState === 5 || currentState === 6
-      ? "bg-emerald-500"
-      : currentState === 1
-      ? "bg-amber-500"
-      : "bg-rose-500";
-
   const widgetParseVal =
     currentState === 0
       ? "12.4 GB/s"
@@ -261,21 +238,6 @@ export function ArchitectureDiagram() {
       ? "1 active event"
       : "0 active events";
 
-  const widgetThreatColorClass =
-    currentState === 2 || currentState === 3 || currentState === 4
-      ? "text-rose-500"
-      : "text-emerald-400";
-
-  const widgetThreatPingClass =
-    currentState === 2 || currentState === 3 || currentState === 4
-      ? "bg-rose-500"
-      : "bg-emerald-400";
-
-  const widgetThreatStatusText =
-    currentState === 2 || currentState === 3 || currentState === 4
-      ? "ALERT // ANOMALY BLOCKED"
-      : "SECURE // AUDIT ACTIVE";
-
   // Flow classes mapping
   const isFlowAmber =
     currentState === 1 ||
@@ -284,11 +246,6 @@ export function ArchitectureDiagram() {
     currentState === 4;
   const isFlowRose =
     currentState === 2 || currentState === 3 || currentState === 4;
-  const isFlowEmerald =
-    currentState === 3 ||
-    currentState === 4 ||
-    currentState === 5 ||
-    currentState === 6;
 
   const pathFrontToIngressClass = isFlowAmber ? "path-flow-amber" : "";
   const pathIlToLatencyClass = isFlowAmber ? "path-flow-amber" : "";
@@ -331,17 +288,16 @@ export function ArchitectureDiagram() {
   const ySecLogs = showDetails ? 28 : 32;
   const yTitleDet = showDetails ? 15 : 19;
   const ySecDet = showDetails ? 27 : 31;
-  
-  const colorTeal = isLight ? "#6366f1" : "#00f0ff";
-  const colorEmerald = isLight ? "#7c3aed" : "#10b981";
-  const colorBlue = isLight ? "#4f46e5" : "#3b82f6";
-  const colorGreen = isLight ? "#6366f1" : "#059669";
 
   return (
     <div className={`w-full overflow-hidden border p-6 relative select-none transition-colors duration-300 ${isLight ? "bg-[#fcfcfd] border-zinc-200" : "bg-[#090b0f] border-zinc-800"}`}>
       {/* Corner Labels & Control Room Aesthetic */}
       <div className="absolute top-4 left-4 flex items-center gap-2">
-        <span className={`font-mono text-[10px] uppercase tracking-widest \${isLight ? "text-zinc-500" : "text-zinc-400"}`} id="state-label">
+        <span
+          className="h-2 w-2 rounded-full animate-pulse inline-block"
+          style={{ backgroundColor: statePingFill }}
+        />
+        <span className={`font-mono text-[10px] uppercase tracking-widest ${isLight ? "text-zinc-500" : "text-zinc-400"}`} id="state-label">
           {isLight && currentState === 0 ? "SYS TOPOLOGY LOOP // STABLE" : stateLabel}
         </span>
       </div>
