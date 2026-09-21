@@ -219,7 +219,53 @@ func main() {
 		_, _ = w.Write([]byte(b.String()))
 	})
 
-	log.Printf("[LogStrata] Daemon listening on %s (Metrics: /metrics, Status: /api/v1/status)", *listenAddr)
+	http.HandleFunc("/api/v1/stream", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		ctx := r.Context()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				state.mu.RLock()
+				snap := metricsEngine.GetSnapshot(5)
+				payload, _ := json.Marshal(map[string]interface{}{
+					"timestamp":              time.Now().UTC().Format(time.RFC3339),
+					"total_ingested":         state.totalIngested,
+					"current_replicas":       state.currentReplicas,
+					"target_replicas":        state.lastDecision.DesiredReplicas,
+					"last_decision_action":   state.lastDecision.Action,
+					"last_decision_reason":   state.lastDecision.Reason,
+					"rps":                    snap.RPS,
+					"p50_latency_ms":         snap.P50LatencyMs,
+					"p95_latency_ms":         snap.P95LatencyMs,
+					"p99_latency_ms":         snap.P99LatencyMs,
+					"error_rate_5xx_percent": snap.ErrorRate5xxPercent,
+					"blocked_ips_count":      len(anomalyDetector.GetBlockedIPs()),
+					"scale_down_locked":      anomalyDetector.IsScaleDownLocked(),
+				})
+				state.mu.RUnlock()
+
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", payload)
+				flusher.Flush()
+			}
+		}
+	})
+
+	log.Printf("[LogStrata] Daemon listening on %s (Metrics: /metrics, Status: /api/v1/status, Stream: /api/v1/stream)", *listenAddr)
 	if err := http.ListenAndServe(*listenAddr, nil); err != nil {
 		log.Fatalf("[LogStrata FATAL] Server failed: %v", err)
 	}
