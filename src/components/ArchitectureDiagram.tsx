@@ -1,25 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
+
+const SIMULATION_STAGES = [
+  { id: 0, label: "01 Nominal", color: "#10b981" },
+  { id: 1, label: "02 Latency Spike", color: "#f59e0b" },
+  { id: 2, label: "03 Error Surge", color: "#e11d48" },
+  { id: 3, label: "04 Calculate Scale", color: "#3b82f6" },
+  { id: 4, label: "05 Patch K8s", color: "#059669" },
+  { id: 5, label: "06 Spin Up Pods", color: "#10b981" },
+  { id: 6, label: "07 Stabilized", color: "#10b981" },
+];
 
 export function ArchitectureDiagram() {
   const [currentState, setCurrentState] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const advanceRef = useRef<(state: number) => void>(() => {});
 
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timer);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const isLight = mounted && resolvedTheme === "light";
 
   const advanceSimulation = useCallback((state: number) => {
+    if (isPaused) return;
     const nextState = (state + 1) % 7;
     setCurrentState(nextState);
 
@@ -34,26 +45,42 @@ export function ArchitectureDiagram() {
     ];
 
     timerRef.current = setTimeout(() => advanceRef.current(nextState), durations[nextState]);
-  }, []);
+  }, [isPaused]);
 
   useEffect(() => {
     advanceRef.current = advanceSimulation;
   }, [advanceSimulation]);
 
   useEffect(() => {
-    // Start automatic loop after 4 seconds of initial idle normal state
+    if (isPaused) return;
     timerRef.current = setTimeout(() => advanceRef.current(0), 4000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [isPaused]);
+
+  const selectStage = (stageId: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setCurrentState(stageId);
+    if (!isPaused) {
+      const durations = [6000, 4000, 4000, 3500, 3500, 5000, 6000];
+      timerRef.current = setTimeout(() => advanceRef.current(stageId), durations[stageId]);
+    }
+  };
+
+  const togglePause = () => {
+    if (isPaused) {
+      setIsPaused(false);
+      const durations = [6000, 4000, 4000, 3500, 3500, 5000, 6000];
+      timerRef.current = setTimeout(() => advanceRef.current(currentState), durations[currentState]);
+    } else {
+      setIsPaused(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    }
+  };
 
   const triggerLatencySpike = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    setCurrentState(1);
-    timerRef.current = setTimeout(() => advanceRef.current(1), 4000);
+    selectStage(1);
   };
 
   // State-based content definitions
@@ -301,7 +328,21 @@ export function ArchitectureDiagram() {
           {isLight && currentState === 0 ? "SYS TOPOLOGY LOOP // STABLE" : stateLabel}
         </span>
       </div>
-      <div className="absolute top-4 right-4 flex items-center gap-3 font-mono text-[9px]">
+      <div className="absolute top-4 right-4 flex items-center gap-2 font-mono text-[9px]">
+        <button
+          onClick={togglePause}
+          id="btn-toggle-pause"
+          className={`rounded-[4px] px-2.5 py-1 font-mono text-[9px] cursor-pointer transition-colors focus:outline-none focus:ring-1 ${
+            isPaused
+              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 focus:ring-amber-400"
+              : isLight
+              ? "border border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 focus:ring-zinc-400"
+              : "bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 border border-zinc-700 focus:ring-zinc-500"
+          }`}
+          title={isPaused ? "Resume simulation loop" : "Pause simulation loop"}
+        >
+          {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
+        </button>
         <button
           onClick={() => setShowDetails(d => !d)}
           id="btn-toggle-details"
@@ -329,16 +370,38 @@ export function ArchitectureDiagram() {
           ⚡ TRIGGER
         </button>
         <span className="text-zinc-500">•</span>
-        <span className="text-zinc-500" id="top-rate">
+        <span className="text-zinc-500 hidden sm:inline" id="top-rate">
           {topRate}
         </span>
-        <span className="text-zinc-500">•</span>
-        <span className="text-zinc-500" id="top-replicas">
+        <span className="text-zinc-500 hidden sm:inline">•</span>
+        <span className="text-zinc-500 hidden sm:inline" id="top-replicas">
           {topReplicas}
         </span>
       </div>
 
-      <div className="mt-8 flex justify-center">
+      {/* Interactive Simulation Stages Bar */}
+      <div className="mt-10 mb-2 flex items-center justify-center gap-1.5 flex-wrap">
+        {SIMULATION_STAGES.map(stage => {
+          const isActive = currentState === stage.id;
+          return (
+            <button
+              key={stage.id}
+              onClick={() => selectStage(stage.id)}
+              className={`px-2 py-0.5 rounded-[4px] font-mono text-[9px] cursor-pointer transition-all border ${
+                isActive
+                  ? "bg-[#0070f3]/20 border-[#0070f3] text-[#0070f3] font-bold shadow-sm"
+                  : isLight
+                  ? "bg-white/60 border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
+                  : "bg-zinc-900/50 border-zinc-800/80 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+              }`}
+            >
+              {stage.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex justify-center">
         <svg
           className="w-full max-w-[900px] h-auto"
           viewBox="0 0 960 700"
