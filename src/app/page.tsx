@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { HeroDiagram } from "@/components/HeroDiagram";
 import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
+import { PolicyStudio } from "@/components/PolicyStudio";
 import { FallingPattern } from "@/components/ui/falling-pattern";
 import { Pricing } from "@/components/ui/pricing";
 import { FaqSectionWithCategories } from "@/components/blocks/faq-with-categories";
@@ -852,12 +853,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SECTION 8: QUICK START */}
-      <section className="py-24 px-6 border-b border-hairline bg-canvas-soft">
+      {/* SECTION 8: VISUAL POLICY STUDIO */}
+      <section id="policy-studio" className="py-24 px-6 border-b border-hairline bg-canvas-soft">
         <div className="mx-auto max-w-[1400px]">
           <div className="text-center mb-16">
             <span className="font-mono text-xs uppercase tracking-widest text-[#0070f3] font-bold">
-              08 / QUICK START
+              08 / DECLARATIVE SPECIFICATIONS
+            </span>
+            <h2 className="font-sans text-[32px] font-semibold tracking-[-1.28px] leading-[40px] text-ink mt-3 mb-4">
+              Visual Policy Studio.
+            </h2>
+            <p className="text-body max-w-xl mx-auto leading-relaxed text-sm font-light">
+              Synthesize production-ready Custom Resource Definitions (CRDs) with real-time OpenAPI v3 schema validation and GitOps export.
+            </p>
+          </div>
+
+          <div className="max-w-5xl mx-auto">
+            <PolicyStudio />
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 9: QUICK START */}
+      <section className="py-24 px-6 border-b border-hairline bg-canvas">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="text-center mb-16">
+            <span className="font-mono text-xs uppercase tracking-widest text-[#0070f3] font-bold">
+              09 / QUICK START
             </span>
             <h2 className="font-sans text-[32px] font-semibold tracking-[-1.28px] leading-[40px] text-ink mt-3 mb-4">
               Get Up and Running.
