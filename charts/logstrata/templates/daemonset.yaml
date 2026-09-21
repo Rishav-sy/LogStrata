@@ -1,0 +1,57 @@
+{{- if .Values.daemon.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "logstrata.fullname" . }}-daemon
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+    app.kubernetes.io/component: daemon
+spec:
+  selector:
+    matchLabels:
+      {{- include "logstrata.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: daemon
+  template:
+    metadata:
+      labels:
+        {{- include "logstrata.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: daemon
+    spec:
+      serviceAccountName: {{ include "logstrata.serviceAccountName" . }}
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: daemon
+          image: "{{ .Values.daemon.image.repository }}:{{ .Values.daemon.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.daemon.image.pullPolicy | default "IfNotPresent" }}
+          command: ["/app/logstrata-daemon"]
+          args:
+            - "--listen-addr=:8080"
+            - "--log-file=/var/log/pods"
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.daemon.resources | nindent 12 }}
+          volumeMounts:
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: containerd-sock
+              mountPath: /run/containerd/containerd.sock
+              readOnly: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+      volumes:
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: containerd-sock
+          hostPath:
+            path: /run/containerd/containerd.sock
+{{- end }}

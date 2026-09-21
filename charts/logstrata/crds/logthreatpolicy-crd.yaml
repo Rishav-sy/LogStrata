@@ -1,0 +1,84 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: logthreatpolicies.security.logstrata.io
+spec:
+  group: security.logstrata.io
+  names:
+    kind: LogThreatPolicy
+    listKind: LogThreatPolicyList
+    plural: logthreatpolicies
+    singular: logthreatpolicy
+    shortNames:
+      - ltp
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - targetIngressRef
+                - threatMetrics
+              properties:
+                targetIngressRef:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                threatMetrics:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - pattern
+                    properties:
+                      type:
+                        type: string
+                      pattern:
+                        type: string
+                      thresholdPerMinute:
+                        type: integer
+                      action:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - type
+                          properties:
+                            type:
+                              type: string
+                            duration:
+                              type: string
+                            blocklistConfigMap:
+                              type: string
+                            lockMinReplicas:
+                              type: integer
+            status:
+              type: object
+              properties:
+                threatLevel:
+                  type: string
+                blockedIPsCount:
+                  type: integer
+                blockedIPs:
+                  type: array
+                  items:
+                    type: string
+                lastMitigationTime:
+                  type: string
+                  format: date-time
+                scaleDownLocked:
+                  type: boolean

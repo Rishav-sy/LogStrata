@@ -85,3 +85,35 @@ affinity: {}
 supabase:
   url: "https://gzskxpbujufdyanhxuxq.supabase.co"
   anonKey: "sb_publishable_mw9EgPbT3Dv9kECYp02lDA__0nVSGsQ"
+
+# LogStrata DaemonSet agent configuration
+daemon:
+  enabled: true
+  image:
+    repository: rishavsy/logstrata-daemon
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# LogStrata Kubernetes operator controller configuration
+controller:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: rishavsy/logstrata-controller
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+

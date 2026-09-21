@@ -1,0 +1,63 @@
+{{- if .Values.controller.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "logstrata.fullname" . }}-controller
+  labels:
+    {{- include "logstrata.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.controller.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "logstrata.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        {{- include "logstrata.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: {{ include "logstrata.serviceAccountName" . }}
+      containers:
+        - name: controller
+          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.controller.image.pullPolicy | default "IfNotPresent" }}
+          command: ["/app/logstrata-controller"]
+          args:
+            - "--listen-addr=:8081"
+          ports:
+            - name: http-status
+              containerPort: 8081
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "logstrata.fullname" . }}-controller-role
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "deployments/scale"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["core.logstrata.io", "security.logstrata.io"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "logstrata.fullname" . }}-controller-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "logstrata.fullname" . }}-controller-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "logstrata.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
