@@ -34,121 +34,133 @@ const DOCS_DATA: Record<string, DocContent> = {
     description: "How to install and set up LogStrata on your Kubernetes cluster.",
     category: "Guide",
     titleHeader: "Getting Started",
-    subHeader: "Learn how to deploy LogStrata's controller daemon and fluentd collection agents in minutes.",
+    subHeader: "Deploy LogStrata's ultra-low-latency Go containerd daemon and Kubernetes operator in under 2 minutes.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
           <h2 className="text-lg font-bold text-ink">System Prerequisites</h2>
           <p className="text-xs text-body leading-relaxed">
-            Before installing LogStrata, verify that your target environment contains the following tools:
+            LogStrata is completely self-contained with <strong>zero external database dependencies</strong> (no Elasticsearch, OpenSearch, Kafka, or Prometheus Operator required). Verify your environment has:
           </p>
           <ul className="list-disc list-inside text-xs text-body flex flex-col gap-1.5 pl-2">
             <li>
               Kubernetes cluster version{" "}
               <code className="bg-canvas-soft px-1.5 py-0.5 rounded-none border border-hairline font-mono text-[10px]">
-                v1.24+
-              </code>
+                v1.26+
+              </code>{" "}
+              (containerd, CRI-O, or Docker shim)
             </li>
-            <li>Helm package manager installed locally</li>
-            <li>Aggregated Elasticsearch database context or open port access</li>
-            <li>Write access to patch Deployment scale limits</li>
+            <li>
+              <code className="bg-canvas-soft px-1.5 py-0.5 rounded-none border border-hairline font-mono text-[10px]">kubectl</code>{" "}
+              or Helm 3.8+ installed locally
+            </li>
+            <li>Cluster admin permissions to create Custom Resource Definitions (CRDs)</li>
+            <li>Node filesystem read access to container log paths (<code className="font-mono text-[10px]">/var/log/pods</code>)</li>
           </ul>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">1. Install via Helm</h2>
+          <h2 className="text-lg font-bold text-ink">1. Quickstart Installation (Automated)</h2>
           <p className="text-xs text-body leading-relaxed">
-            Add the official Helm repository context and pull down the LogStrata platform package:
+            Run the automated installation script to deploy CRDs, the DaemonSet log harvester, and the Controller operator:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
-            <span className="text-mute"># Register registry</span>
+            <span className="text-mute"># Deploy LogStrata in one command</span>
             <br />
-            <span className="text-mute">$</span> helm repo add logstrata https://helm.logstrata.io
+            <span className="text-mute">$</span> curl -sSL https://raw.githubusercontent.com/Rishav-sy/LogStrata/main/scripts/install.sh | bash
+          </div>
+          <p className="text-xs text-body leading-relaxed">
+            Alternatively, deploy using the official Helm chart:
+          </p>
+          <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
+            <span className="text-mute"># Install via Helm</span>
             <br />
-            <span className="text-mute">$</span> helm repo update
-            <br />
-            <br />
-            <span className="text-mute"># Install charts into custom namespace</span>
-            <br />
-            <span className="text-mute">$</span> helm install logstrata logstrata/logstrata \<br />
+            <span className="text-mute">$</span> helm install logstrata ./charts/logstrata \<br />
             &nbsp;&nbsp;--namespace logstrata-system \<br />
-            &nbsp;&nbsp;--create-namespace
+            &nbsp;&nbsp;--create-namespace \<br />
+            &nbsp;&nbsp;--set daemon.logPath=/var/log/pods \<br />
+            &nbsp;&nbsp;--set controller.reconcileInterval=5s
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">2. Verify Ingestion</h2>
+          <h2 className="text-lg font-bold text-ink">2. Verify Cluster Health</h2>
           <p className="text-xs text-body leading-relaxed">
-            Ensure that the collection agent DaemonSet and Controller components are running correctly:
+            Run the verification script or inspect the pods running in the <code className="font-mono text-[10px]">logstrata-system</code> namespace:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
+            <span className="text-mute">$</span> ./scripts/verify-cluster.sh
+            <br />
+            <span className="text-mute"># Or directly via kubectl</span>
+            <br />
             <span className="text-mute">$</span> kubectl get pods -n logstrata-system
           </div>
           <p className="text-xs text-body leading-relaxed">Expected output:</p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-body leading-relaxed">
-            NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READY&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;&nbsp;RESTARTS&nbsp;&nbsp;&nbsp;AGE
+            NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READY&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;&nbsp;RESTARTS&nbsp;&nbsp;&nbsp;AGE
             <br />
-            logstrata-controller-5fc6d5b78-xyz12&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2m
+            logstrata-controller-7f8d9b4c2-k8s90&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;45s
             <br />
-            fluentd-logging-agent-j4k2s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2m
+            logstrata-daemon-node1-v7x2q&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;45s
             <br />
-            fluentd-logging-agent-l8f9d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2m
+            logstrata-daemon-node2-m3p4r&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;45s
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">3. Apply Your First Scaling Policy</h2>
+          <h2 className="text-lg font-bold text-ink">3. Apply Your First LogThreatPolicy</h2>
           <p className="text-xs text-body leading-relaxed">
-            Create a simple policy configuration to automatically scale your application on high request latency. Save the
-            file as{" "}
-            <code className="bg-canvas-soft px-1.5 py-0.5 rounded-none border border-hairline font-mono text-[10px]">
-              slsa-policy.yaml
-            </code>
-            :
+            Define a custom policy to auto-scale on P95 latency and enforce DDoS scale-down lockouts:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
             <pre className="whitespace-pre-wrap">
               <code>
-                {`apiVersion: core.logstrata.io/v1alpha1
-kind: LogAutoscalerPolicy
+                {`apiVersion: logstrata.io/v1alpha1
+kind: LogThreatPolicy
 metadata:
-  name: frontend-latency-scaler
+  name: api-gateway-autoscaler
+  namespace: default
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: main-frontend
-  metricSources:
-    - type: ElasticSearchQuery
-      elasticsearch:
-        query: "status:200 AND path:/home"
-        timeWindow: "30s"
-        trigger:
-          metricName: throughput_rps
-          threshold: 300.0
-          scaleFactor: 1.5
-  cooldownPeriod: "45s"
-  minReplicas: 3
-  maxReplicas: 15`}
+  targetDeployment:
+    name: api-gateway
+    namespace: default
+  scalingRules:
+    minReplicas: 3
+    maxReplicas: 20
+    targetRPSPerPod: 150
+    targetP95LatencyMs: 250
+    scaleUpCooldownSec: 15
+    scaleDownCooldownSec: 90
+  threatDetection:
+    bruteForceThresholdRPS: 40
+    errorRatioThresholdPct: 20.0
+    scaleDownLockoutSec: 300
+    dynamicNetworkPolicy:
+      enabled: true
+      blockTTLSec: 600`}
               </code>
             </pre>
           </div>
-          <p className="text-xs text-body leading-relaxed">Apply it directly to your cluster context:</p>
+          <p className="text-xs text-body leading-relaxed">Apply it directly to your cluster:</p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
-            <span className="text-mute">$</span> kubectl apply -f slsa-policy.yaml
+            <span className="text-mute">$</span> kubectl apply -f api-gateway-policy.yaml
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
           <h2 className="text-lg font-bold text-ink">Next Steps</h2>
           <p className="text-xs text-body leading-relaxed">
-            Read about how the{" "}
+            Explore the{" "}
             <Link href="/docs/architecture" className="text-link hover:underline">
-              internal architecture
-            </Link>{" "}
-            manages metric querying, or explore the{" "}
+              zero-indexing architecture
+            </Link>
+            , review the{" "}
             <Link href="/docs/configuration" className="text-link hover:underline">
-              configuration variables
+              CRD configuration specs
+            </Link>
+            , or test the{" "}
+            <Link href="/docs/api-reference" className="text-link hover:underline">
+              daemon HTTP &amp; Prometheus endpoints
             </Link>
             .
           </p>
@@ -158,85 +170,68 @@ spec:
   },
   architecture: {
     title: "Architecture",
-    description: "Deep dive into LogStrata's log collection, database indexing, and scaling orchestrations.",
+    description: "Deep dive into LogStrata's zero-indexing pipeline, circular ring buffers, and operator reconciliation.",
     category: "Concepts",
     titleHeader: "System Architecture",
-    subHeader: "Understand the internal components and data flow loops driving log-based Kubernetes scaling.",
+    subHeader: "Sub-millisecond log ingestion, in-memory circular time-series, and attack-aware Kubernetes reconciliation.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Component Breakdown</h2>
+          <h2 className="text-lg font-bold text-ink">Zero-Indexing Architecture</h2>
           <p className="text-xs text-body leading-relaxed">
-            LogStrata relies on three core microservices deployed inside your cluster context:
+            Traditional log-based autoscaling relies on multi-layer pipelines: Log Harvester &rarr; Kafka &rarr; Logstash &rarr; Elasticsearch &rarr; Cron Query. This introduces 30&ndash;90 seconds of lag and massive cloud storage bills. LogStrata eliminates the entire indexing tier.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <div className="bg-canvas-soft p-4 rounded-none border border-hairline flex flex-col gap-1.5">
-              <span className="font-mono text-xs text-primary font-bold">1. Log Harvesters</span>
+              <span className="font-mono text-xs text-primary font-bold">1. LogStrata Daemon</span>
               <p className="text-[11px] text-body leading-relaxed">
-                Fluentd DaemonSets running on every node harvest container stdout stream logs directly from the node
-                filesystem.
+                Lightweight Go DaemonSet reading container stdout (<code className="font-mono text-[10px]">/var/log/pods</code>) or Unix sockets with sub-microsecond parsing (~1.1&micro;s/op).
               </p>
             </div>
             <div className="bg-canvas-soft p-4 rounded-none border border-hairline flex flex-col gap-1.5">
-              <span className="font-mono text-xs text-primary font-bold">2. Index Storage</span>
+              <span className="font-mono text-xs text-primary font-bold">2. In-Memory SWTR Buffer</span>
               <p className="text-[11px] text-body leading-relaxed">
-                Logs are structured into indexed documents in Elasticsearch or OpenSearch databases to allow fast
-                aggregation queries.
+                Second-Window Time Ring (SWTR) 60-bucket circular buffer calculating RPS, P50/P90/P95/P99 latency, and error rates in 9.35 nanoseconds with zero heap allocations.
               </p>
             </div>
             <div className="bg-canvas-soft p-4 rounded-none border border-hairline flex flex-col gap-1.5">
-              <span className="font-mono text-xs text-primary font-bold">3. LogStrata Daemon</span>
+              <span className="font-mono text-xs text-primary font-bold">3. Controller Operator</span>
               <p className="text-[11px] text-body leading-relaxed">
-                The core control plane queries the index database at tick intervals to evaluate custom scaling threshold
-                policies.
+                Watches <code className="font-mono text-[10px]">LogThreatPolicy</code> CRDs and issues atomic JSON patches to Deployment replica counts while generating dynamic NetworkPolicy CIDR drop rules.
               </p>
             </div>
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Data Flow Pipeline</h2>
+          <h2 className="text-lg font-bold text-ink">Real-Time Data Pipeline</h2>
           <p className="text-xs text-body leading-relaxed">
-            How a log entry turns into an infrastructure adjustment:
+            How a single log line triggers an instantaneous scaling decision:
           </p>
           <ol className="list-decimal list-inside text-xs text-body flex flex-col gap-2.5 pl-2">
             <li>
-              <strong className="text-ink">Log Generation:</strong> An application pod handles a checkout request and logs:{" "}
-              <code className="bg-canvas-soft px-1.5 py-0.5 border border-hairline font-mono text-[10px]">
-                {`{"path":"/checkout", "latency_ms":1200, "status":200}`}
-              </code>
-              .
+              <strong className="text-ink">Log Output:</strong> Application container outputs standard JSON or Combined NGINX/Envoy log to stdout.
             </li>
             <li>
-              <strong className="text-ink">Ingestion & Storage:</strong> The Fluentd DaemonSet forwards the parsed JSON
-              document to Elasticsearch, where it is indexed in real-time.
+              <strong className="text-ink">Zero-Copy Ingestion:</strong> The node-level <code className="text-ink">logstrata-daemon</code> captures the event via inotify or FIFO pipe, strips CRI wrapper prefixes, and parses HTTP status, method, latency, and client IP.
             </li>
             <li>
-              <strong className="text-ink">Controller Tick Evaluation:</strong> Every 10 seconds, LogStrata executes an
-              aggregation query:{" "}
-              <code className="bg-canvas-soft px-1.5 py-0.5 border border-hairline font-mono text-[10px]">
-                SELECT P95(latency_ms) WHERE path=&apos;/checkout&apos;
-              </code>{" "}
-              over the last 30s.
+              <strong className="text-ink">SWTR Circular Aggregation:</strong> Log metrics are pushed to the current second bucket. Quantiles are computed over the sliding window in constant time <code className="text-ink">O(1)</code>.
             </li>
             <li>
-              <strong className="text-ink">Threshold Violation:</strong> The query returns <code className="text-ink">1200ms</code>
-              . This violates the configured <code className="text-ink">800ms</code> limit.
+              <strong className="text-ink">Threat &amp; Surge Detection:</strong> If traffic surges &gt;2.5&times; or 401/403 brute-force rates exceed thresholds, the detector flags the surge and locks down the scale-down gate.
             </li>
             <li>
-              <strong className="text-ink">Kubernetes PATCH Action:</strong> LogStrata sends a patch API request to
-              increase target deployment replica counts.
+              <strong className="text-ink">Operator Reconciliation:</strong> The operator computes required capacity: <code className="text-ink">ceil(CurrentReplicas * (CurrentRPS / TargetRPS))</code> and issues an immediate JSON Patch to the Deployment scale subresource.
             </li>
           </ol>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Scale-Down Cooldowns & Failsafes</h2>
+          <h2 className="text-lg font-bold text-ink">Scale-Down Lockout &amp; Yo-Yo Defense</h2>
           <p className="text-xs text-body leading-relaxed">
-            To avoid &quot;thrashing&quot; (rapid scaling up and down), LogStrata enforces strict cooldown windows. When a
-            scale-up is completed, scale-down requests are ignored for a default cooldown period (e.g. 90 seconds). This
-            allows newly scheduled pods to start up and stabilize cluster metrics.
+            During attack events or traffic volatility, LogStrata activates its <strong className="text-ink">Scale-Down Suppression Lock</strong>. While normal scaling honors <code className="text-ink">scaleDownCooldownSec</code> (default 90s), any detected threat extends the minimum replica floor for up to 300s, preventing attackers from orchestrating pod exhaustion storms.
           </p>
         </section>
       </div>
@@ -246,56 +241,54 @@ spec:
     title: "Configuration",
     description: "YAML schema definitions and Custom Resource (CRD) configuration options.",
     category: "Reference",
-    titleHeader: "Configuration",
-    subHeader: "Examine the full YAML schema specifications for LogAutoscalerPolicy Custom Resources.",
+    titleHeader: "Configuration Reference",
+    subHeader: "Examine the full YAML schema specifications for LogThreatPolicy Custom Resource Definitions.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">YAML Schema Outline</h2>
+          <h2 className="text-lg font-bold text-ink">LogThreatPolicy CRD Outline</h2>
           <p className="text-xs text-body leading-relaxed">
-            Below is a fully featured{" "}
-            <code className="bg-canvas-soft px-1.5 py-0.5 border border-hairline font-mono text-[10px]">
-              LogAutoscalerPolicy
-            </code>{" "}
-            resource. Use it as a configuration template:
+            Below is a complete <code className="bg-canvas-soft px-1.5 py-0.5 border border-hairline font-mono text-[10px]">LogThreatPolicy</code> resource (<code className="font-mono text-[10px]">logstrata.io/v1alpha1</code>):
           </p>
 
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
             <pre className="whitespace-pre-wrap">
               <code>
-                {`apiVersion: core.logstrata.io/v1alpha1
-kind: LogAutoscalerPolicy
+                {`apiVersion: logstrata.io/v1alpha1
+kind: LogThreatPolicy
 metadata:
-  name: billing-scaler-rules
-  namespace: prod-services
+  name: prod-checkout-autoscaler
+  namespace: e-commerce
 spec:
-  # Reference to target application
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: billing-worker
+  # Target Deployment Reference
+  targetDeployment:
+    name: checkout-service
+    namespace: e-commerce
 
-  # Scaling bounds limits
-  minReplicas: 2
-  maxReplicas: 30
-  cooldownPeriod: "90s"
+  # Scaling Parameters
+  scalingRules:
+    minReplicas: 4
+    maxReplicas: 40
+    targetRPSPerPod: 120
+    targetP95LatencyMs: 300
+    scaleUpCooldownSec: 15
+    scaleDownCooldownSec: 90
+    panicScaleFactor: 2.0
 
-  # Metrics sources definitions
-  metricSources:
-    - type: ElasticSearchQuery
-      elasticsearch:
-        query: "status:500 AND service:billing"
-        timeWindow: "60s"
-        trigger:
-          metricName: error_rate_pct
-          threshold: 5.0
-          scaleFactor: 2.0
+  # Threat Detection & Defense
+  threatDetection:
+    bruteForceThresholdRPS: 50
+    errorRatioThresholdPct: 25.0
+    scaleDownLockoutSec: 300
+    dynamicNetworkPolicy:
+      enabled: true
+      blockTTLSec: 600
 
-  # Active Cybersecurity Modifiers
-  securityModifications:
-    lockMinReplicasOnDDoS: 10
-    dynamicIpBlocking: true
-    mitigationCooldown: "120s"`}
+  # Alert Notifications
+  notifications:
+    slackWebhookURL: "https://hooks.slack.com/services/T00/B00/XXXX"
+    discordWebhookURL: ""
+    customWebhookURL: "https://ops.internal.net/alerts"`}
               </code>
             </pre>
           </div>
@@ -314,36 +307,39 @@ spec:
               </thead>
               <tbody className="text-body divide-y divide-hairline">
                 <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">scaleTargetRef</td>
-                  <td className="py-2.5">Object</td>
-                  <td className="py-2.5">Defines the deployment name and apiVersion to modify scaling bounds on.</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">minReplicas</td>
-                  <td className="py-2.5">Integer</td>
-                  <td className="py-2.5">Absolute minimum pod instances the controller can scale down to.</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">maxReplicas</td>
-                  <td className="py-2.5">Integer</td>
-                  <td className="py-2.5">Absolute ceiling pod limits to prevent budget runaway.</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">elasticsearch.query</td>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">targetDeployment.name</td>
                   <td className="py-2.5">String</td>
-                  <td className="py-2.5">The Lucene-style search query executed against Elasticsearch indices.</td>
+                  <td className="py-2.5">Target Kubernetes Deployment name to monitor and scale.</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">elasticsearch.timeWindow</td>
-                  <td className="py-2.5">Duration</td>
-                  <td className="py-2.5">Time period range looked back (e.g. 30s, 2m, 5m).</td>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">scalingRules.minReplicas</td>
+                  <td className="py-2.5">Integer</td>
+                  <td className="py-2.5">Minimum replica floor under normal operating conditions.</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 font-mono text-[11px] text-ink">securityModifications</td>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">scalingRules.maxReplicas</td>
+                  <td className="py-2.5">Integer</td>
+                  <td className="py-2.5">Absolute maximum replica ceiling to protect cluster capacity and cloud spend.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">scalingRules.targetRPSPerPod</td>
+                  <td className="py-2.5">Integer</td>
+                  <td className="py-2.5">Nominal throughput capacity per pod used for capacity ratio calculations.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">scalingRules.targetP95LatencyMs</td>
+                  <td className="py-2.5">Integer</td>
+                  <td className="py-2.5">P95 SLA latency ceiling; exceeding this triggers proactive scale-out.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">threatDetection.bruteForceThresholdRPS</td>
+                  <td className="py-2.5">Integer</td>
+                  <td className="py-2.5">Rate of 401/403 responses per second that triggers security threat state.</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 font-mono text-[11px] text-ink">threatDetection.dynamicNetworkPolicy</td>
                   <td className="py-2.5">Object</td>
-                  <td className="py-2.5">
-                    Mitigation properties to lock bounds and trigger firewall gates during cyber attacks.
-                  </td>
+                  <td className="py-2.5">Automatically generates Kubernetes NetworkPolicy CIDR drops for offensive client IPs.</td>
                 </tr>
               </tbody>
             </table>
@@ -357,60 +353,50 @@ spec:
     description: "Understanding how log metrics map to Kubernetes scale decisions.",
     category: "Logic",
     titleHeader: "Scaling Policies",
-    subHeader: "Deep dive into target calculations, latency percentile equations, and cooldown algorithms.",
+    subHeader: "Capacity ratios, latency percentile triggers, and anti-thrashing cooldown mechanics.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Autoscaling Core Equation</h2>
+          <h2 className="text-lg font-bold text-ink">Core Autoscaling Equation</h2>
           <p className="text-xs text-body leading-relaxed">
-            LogStrata uses a modified target tracking algorithm to determine the desired replica count. At each controller
-            tick:
+            LogStrata computes desired replicas at sub-second intervals using a dual-factor capacity algorithm balancing RPS load and P95 latency:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink text-center">
-            DesiredReplicas = ceil( CurrentReplicas * ( CurrentMetricValue / TargetThreshold ) )
+            DesiredReplicas = clamp( ceil( max( RPSRatio, LatencyRatio ) * CurrentReplicas ), MinReplicas, MaxReplicas )
           </div>
           <p className="text-xs text-body leading-relaxed">
-            For example, if your current replica count is <code className="text-ink">4</code>, the current P95 response
-            latency is <code className="text-ink">1200ms</code>, and your target threshold limit is configured at{" "}
-            <code className="text-ink">800ms</code>:
+            Where <code className="text-ink">RPSRatio = TotalClusterRPS / (TargetRPSPerPod * CurrentReplicas)</code>.
+          </p>
+          <p className="text-xs text-body leading-relaxed">
+            For example, if <code className="text-ink">CurrentReplicas = 4</code>, <code className="text-ink">TargetRPSPerPod = 100</code>, and current incoming traffic spikes to <code className="text-ink">750 RPS</code>:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-body">
-            DesiredReplicas = ceil( 4 * ( 1200 / 800 ) ) = ceil( 4 * 1.5 ) = 6 replicas
+            DesiredReplicas = clamp( ceil( 750 / 100 ), 4, 30 ) = 8 replicas (instant scale-out)
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Percentile vs Average Metrics</h2>
+          <h2 className="text-lg font-bold text-ink">Sub-Millisecond Percentile Calculations</h2>
           <p className="text-xs text-body leading-relaxed">
-            Relying on average latencies often masks extreme outliers (e.g. 5% of users experiencing 10-second wait times).
-            LogStrata recommends configuring <strong className="text-ink">P95</strong> or <strong className="text-ink">P99</strong>{" "}
-            percentiles in the aggregation queries to capture microservice choke points accurately:
+            Traditional metrics servers evaluate averages, completely missing tail latency spikes. LogStrata&apos;s SWTR buffer aggregates response latencies across 60 second-level buckets and computes exact <strong>P50, P90, P95, and P99</strong> metrics in under 10 nanoseconds.
           </p>
-          <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
-            <pre className="whitespace-pre-wrap">
-              <code>
-                {`# P95 response latency trigger configuration snippet
-trigger:
-  metricName: p95_latency
-  threshold: 800.0  # Milliseconds
-  scaleFactor: 1.5  # Boost multiplier when violated`}
-              </code>
-            </pre>
-          </div>
+          <p className="text-xs text-body leading-relaxed">
+            When P95 latency exceeds <code className="text-ink">targetP95LatencyMs</code> for two consecutive seconds, LogStrata proactively scales the workload before HTTP error rates begin to climb.
+          </p>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Cooldown Restraints</h2>
-          <p className="text-xs text-body leading-relaxed">To maintain infrastructure stability, two cooldown windows exist:</p>
+          <h2 className="text-lg font-bold text-ink">Anti-Thrashing Cooldown Enforcements</h2>
+          <p className="text-xs text-body leading-relaxed">To prevent rapid oscillations, LogStrata enforces separate asymmetric cooldown periods:</p>
           <ul className="list-disc list-inside text-xs text-body flex flex-col gap-1.5 pl-2">
             <li>
-              <strong className="text-ink">Scale-Up Cooldown:</strong> Default <code className="text-ink">15s</code>. Prevents
-              the controller from spinning up further pods while the previously ordered pods are in the{" "}
-              <code className="text-ink">ContainerCreating</code> phase.
+              <strong className="text-ink">Scale-Up Cooldown (Default: 15s):</strong> Prevents redundant scale-out orders while newly created pods transition through <code className="text-ink">ContainerCreating</code> and pass readiness probes.
             </li>
             <li>
-              <strong className="text-ink">Scale-Down Cooldown:</strong> Default <code className="text-ink">90s</code>.
-              Prevents deleting healthy pods too quickly during minor traffic fluctuations, avoiding pod spin-up overhead.
+              <strong className="text-ink">Scale-Down Cooldown (Default: 90s):</strong> Prevents premature pod termination during momentary traffic dips.
+            </li>
+            <li>
+              <strong className="text-ink">Threat Lockout Window (Default: 300s):</strong> Suppresses all scale-down events if anomalous traffic patterns or brute-force floods have been detected.
             </li>
           </ul>
         </section>
@@ -421,57 +407,58 @@ trigger:
     title: "Security Analytics",
     description: "How LogStrata protects your application scaling layers from cyber threats and DDoS floods.",
     category: "Threat Security",
-    titleHeader: "Security Analytics",
-    subHeader: "Configure defense modifiers to block credential stuffing and lock scaling bounds during cyber incidents.",
+    titleHeader: "Security Analytics &amp; Threat Mitigation",
+    subHeader: "DDoS scale-lock defenses, dynamic Kubernetes NetworkPolicies, and automated IP quarantine.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">The Scale-Down Vulnerability</h2>
+          <h2 className="text-lg font-bold text-ink">The Scale-Down Exhaustion Attack</h2>
           <p className="text-xs text-body leading-relaxed">
-            A common attack vector against autoscaling APIs is a <strong className="text-ink">resource degradation DDoS</strong>.
-            Attackers flood a cluster endpoint, forcing the orchestrator to scale out. Once the attack stops, the cluster
-            quickly scales back down. If the attacker alternates this pattern, the cluster gets stuck in a constant loop of
-            container creation and deletion, exhausting API resources.
+            A primary vulnerability of naive Kubernetes Horizontal Pod Autoscalers (HPAs) is the <strong>Yo-Yo / Oscillating Attack</strong>. Adversaries generate pulsating traffic surges: forcing a massive scale-up, suddenly terminating traffic, waiting for the cluster to scale down, and then hitting the endpoint again. This exhausts Kubernetes API server capacity, worker node memory, and CPU limits.
           </p>
           <p className="text-xs text-body leading-relaxed">
-            LogStrata solves this by enforcing a <strong className="text-ink">Minimum Replica Scale Lock</strong> during security
-            events, preventing pods from being deleted for a safety cooldown period.
+            LogStrata identifies this signature pattern and engages an immediate <strong className="text-ink">Scale-Down Suppression Lock</strong>, freezing the pod replica count at elevated capacity and notifying SecOps teams via Slack or Discord.
           </p>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Dynamic IP Blocklisting</h2>
+          <h2 className="text-lg font-bold text-ink">Dynamic Kubernetes NetworkPolicy Quarantine</h2>
           <p className="text-xs text-body leading-relaxed">
-            When brute-force logins or application-level flood patterns are detected, LogStrata parses the logs, isolates the
-            offending client IPs, and writes them directly into an Nginx Ingress ConfigMap:
+            When malicious IPs generate unauthorized requests (e.g. &gt;40 401/403s per second), LogStrata isolates the CIDRs and automatically applies a dynamic <code className="text-ink">networking.k8s.io/v1</code> <code className="text-ink">NetworkPolicy</code> directly in the workload namespace:
           </p>
           <div className="bg-canvas-soft p-4 rounded-none border border-hairline font-mono text-[11px] text-ink leading-relaxed">
             <pre className="whitespace-pre-wrap">
               <code>
-                {`# Ingress IP Blocklist Policy Spec
+                {`apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: logstrata-waf-quarantine
+  namespace: prod-services
 spec:
-  threatMetrics:
-    - type: RegexPatternMatch
-      pattern: "auth_failed"
-      thresholdPerMinute: 60
-      action:
-        - type: IPBlocklist
-          duration: "30m"
-          blocklistConfigMap: "nginx-blocked-ips"`}
+  podSelector:
+    matchLabels:
+      app: checkout-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 198.51.100.42/32
+              - 203.0.113.88/32`}
               </code>
             </pre>
           </div>
           <p className="text-xs text-body leading-relaxed">
-            LogStrata monitors this ConfigMap and issues a reload trigger to Nginx Ingress Controllers, blocking matching
-            TCP connections at the edge in less than 5 seconds.
+            Blocked IPs are managed with automatic TTL expiration (default: 600 seconds) in memory, ensuring clean recovery once the attack subsides.
           </p>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Security Compliance Audit Log</h2>
+          <h2 className="text-lg font-bold text-ink">Observability &amp; Webhook Alerts</h2>
           <p className="text-xs text-body leading-relaxed">
-            Every scaling modifier and blocked IP action is written to a tamper-proof SIEM audit log. You can stream these
-            security events to Splunk, Datadog, or Elasticsearch for compliance verification.
+            All threat activations, scale decisions, and blocked CIDRs are exported to Prometheus metrics and dispatched in real-time to configured Slack/Discord webhooks with incident summaries.
           </p>
         </section>
       </div>
@@ -479,108 +466,128 @@ spec:
   },
   "api-reference": {
     title: "API Reference",
-    description: "HTTP API specification for LogStrata controller control endpoints.",
+    description: "HTTP API specification for LogStrata daemon and controller endpoints.",
     category: "Spec",
-    titleHeader: "API Reference",
-    subHeader: "HTTP endpoints exposed by the LogStrata controller for external query and integration.",
+    titleHeader: "API &amp; Metrics Reference",
+    subHeader: "Native HTTP and Prometheus endpoints exposed by LogStrata daemon and controller.",
     element: (
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Ingress IP Blocklist Management</h2>
-          <p className="text-xs text-body leading-relaxed">Query or manually add addresses to the dynamic firewall blocklist.</p>
+          <h2 className="text-lg font-bold text-ink">Health &amp; Runtime Endpoints</h2>
 
-          {/* API Endpoint 1 */}
+          {/* Healthz */}
           <div className="border border-hairline rounded-none bg-canvas overflow-hidden mb-4">
             <div className="border-b border-hairline px-4 py-2.5 flex items-center justify-between bg-canvas-soft">
               <div className="flex items-center gap-2 text-xs">
                 <span className="border border-hairline bg-canvas px-2 py-0.5 rounded-none font-mono text-ink text-[10px] font-bold">
                   GET
                 </span>
-                <span className="font-mono font-semibold text-ink">/api/v1/blocklist</span>
+                <span className="font-mono font-semibold text-ink">/healthz</span>
               </div>
-              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Auth Required</span>
+              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Liveness / Readiness</span>
+            </div>
+            <div className="p-4 text-xs text-body flex flex-col gap-3">
+              <p className="leading-relaxed">Returns HTTP 200 OK if the daemon process is healthy and ingesting logs.</p>
+              <pre className="bg-canvas-soft p-3 rounded-none border border-hairline font-mono text-[10px] text-ink leading-relaxed">
+                <code>{`{"status": "ok"}`}</code>
+              </pre>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="border border-hairline rounded-none bg-canvas overflow-hidden mb-4">
+            <div className="border-b border-hairline px-4 py-2.5 flex items-center justify-between bg-canvas-soft">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="border border-hairline bg-canvas px-2 py-0.5 rounded-none font-mono text-ink text-[10px] font-bold">
+                  GET
+                </span>
+                <span className="font-mono font-semibold text-ink">/api/v1/status</span>
+              </div>
+              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Runtime Telemetry</span>
             </div>
             <div className="p-4 text-xs text-body flex flex-col gap-3">
               <p className="leading-relaxed">
-                Retrieves the complete array of currently blocked client IP addresses with their remaining lease durations.
+                Returns live telemetry from the in-memory SWTR engine: current RPS, P50/P90/P95/P99 latency, and threat lock status.
               </p>
               <span className="font-semibold text-ink">Example Response:</span>
               <pre className="bg-canvas-soft p-3 rounded-none border border-hairline font-mono text-[10px] text-ink leading-relaxed">
                 <code>
                   {`{
-  "status": "success",
-  "blocked_ips": [
-    {
-      "ip": "104.22.45.1",
-      "reason": "DDoS threshold violation",
-      "expires_in_sec": 1420
-    }
-  ]
+  "node": "worker-pool-node-03",
+  "swtr_window_sec": 60,
+  "current_rps": 142.5,
+  "p95_latency_ms": 48.2,
+  "p99_latency_ms": 112.6,
+  "error_ratio": 0.008,
+  "threat_state": {
+    "surge_detected": false,
+    "scale_down_locked": false,
+    "blocked_ips_count": 0
+  }
 }`}
                 </code>
               </pre>
             </div>
           </div>
 
-          {/* API Endpoint 2 */}
+          {/* Prometheus Metrics */}
+          <div className="border border-hairline rounded-none bg-canvas overflow-hidden mb-4">
+            <div className="border-b border-hairline px-4 py-2.5 flex items-center justify-between bg-canvas-soft">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="border border-hairline bg-canvas px-2 py-0.5 rounded-none font-mono text-ink text-[10px] font-bold">
+                  GET
+                </span>
+                <span className="font-mono font-semibold text-ink">:8080/metrics</span>
+              </div>
+              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Prometheus Scrape</span>
+            </div>
+            <div className="p-4 text-xs text-body flex flex-col gap-3">
+              <p className="leading-relaxed">Standard Prometheus exposition format metrics:</p>
+              <pre className="bg-canvas-soft p-3 rounded-none border border-hairline font-mono text-[10px] text-ink leading-relaxed">
+                <code>
+                  {`# HELP logstrata_ingested_logs_total Total log lines parsed
+# TYPE logstrata_ingested_logs_total counter
+logstrata_ingested_logs_total 1284501
+
+# HELP logstrata_engine_rps Current rolling requests per second
+# TYPE logstrata_engine_rps gauge
+logstrata_engine_rps 142.5
+
+# HELP logstrata_engine_p95_latency_ms Rolling P95 latency in ms
+# TYPE logstrata_engine_p95_latency_ms gauge
+logstrata_engine_p95_latency_ms 48.2
+
+# HELP logstrata_threat_scale_lock Active scale down lock (1 = locked, 0 = normal)
+# TYPE logstrata_threat_scale_lock gauge
+logstrata_threat_scale_lock 0`}
+                </code>
+              </pre>
+            </div>
+          </div>
+
+          {/* Ingest */}
           <div className="border border-hairline rounded-none bg-canvas overflow-hidden">
             <div className="border-b border-hairline px-4 py-2.5 flex items-center justify-between bg-canvas-soft">
               <div className="flex items-center gap-2 text-xs">
                 <span className="border border-hairline bg-canvas px-2 py-0.5 rounded-none font-mono text-ink text-[10px] font-bold">
                   POST
                 </span>
-                <span className="font-mono font-semibold text-ink">/api/v1/blocklist</span>
+                <span className="font-mono font-semibold text-ink">/api/v1/ingest</span>
               </div>
-              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Auth Required</span>
+              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Log Injection</span>
             </div>
             <div className="p-4 text-xs text-body flex flex-col gap-3">
-              <p className="leading-relaxed">Manually add an IP address to the firewall blocklist.</p>
-              <span className="font-semibold text-ink">Payload Schema:</span>
+              <p className="leading-relaxed">HTTP log ingestion endpoint for application sidecars or load test generators.</p>
               <pre className="bg-canvas-soft p-3 rounded-none border border-hairline font-mono text-[10px] text-ink leading-relaxed">
                 <code>
-                  {`{
-  "ip": "198.51.100.42",
-  "reason": "Manual operator block",
-  "duration_sec": 3600
-}`}
-                </code>
-              </pre>
-            </div>
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-ink">Controller Metrics Feed</h2>
-
-          {/* API Endpoint 3 */}
-          <div className="border border-hairline rounded-none bg-canvas overflow-hidden">
-            <div className="border-b border-hairline px-4 py-2.5 flex items-center justify-between bg-canvas-soft">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="border border-hairline bg-canvas px-2 py-0.5 rounded-none font-mono text-ink text-[10px] font-bold">
-                  GET
-                </span>
-                <span className="font-mono font-semibold text-ink">/api/v1/metrics</span>
-              </div>
-              <span className="text-[9px] text-mute font-mono uppercase tracking-wider font-bold">Public Feed</span>
-            </div>
-            <div className="p-4 text-xs text-body flex flex-col gap-3">
-              <p className="leading-relaxed">
-                Returns current telemetry aggregated by the LogStrata controller daemon for active policy monitoring.
-              </p>
-              <span className="font-semibold text-ink">Example Response:</span>
-              <pre className="bg-canvas-soft p-3 rounded-none border border-hairline font-mono text-[10px] text-ink leading-relaxed">
-                <code>
-                  {`{
-  "cluster_context": "minikube-logstrata-prod",
-  "uptime_seconds": 158240,
-  "telemetry": {
-    "aggregate_rps": 18.2,
-    "error_rate_pct": 0.45,
-    "p95_latency_ms": 118,
-    "target_deployment": "main-frontend",
-    "active_replicas": 3,
-    "min_replicas_lock": null
-  }
+                  {`// POST Body (JSON or plain text log)
+{
+  "timestamp": "2026-09-21T17:15:00Z",
+  "method": "POST",
+  "path": "/api/v2/checkout",
+  "status": 200,
+  "latency_ms": 64.2,
+  "client_ip": "198.51.100.12"
 }`}
                 </code>
               </pre>
