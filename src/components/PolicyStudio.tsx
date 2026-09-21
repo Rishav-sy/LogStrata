@@ -14,33 +14,32 @@ export function PolicyStudio() {
   const [copied, setCopied] = useState(false);
 
   const generatedYAML = `# LogStrata Custom Resource Definition Policy
-apiVersion: core.logstrata.io/v1alpha1
-kind: LogAutoscalerPolicy
+apiVersion: logstrata.io/v1alpha1
+kind: LogThreatPolicy
 metadata:
   name: ${deploymentName}-policy
   namespace: default
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
+  targetDeployment:
     name: ${deploymentName}
-  minReplicas: ${minReplicas}
-  maxReplicas: ${maxReplicas}
-  targetRPSPerPod: ${targetRPS}.0
-  headroomFactor: ${headroom.toFixed(2)}
-  rules:
-    - metric: "http_requests_per_second"
-      threshold: ${targetRPS * minReplicas}.0
-      window: "10s"
-      action: "scale_up"
-    - metric: "http_5xx_error_percentage"
-      threshold: 5.0
-      window: "30s"
-      action: "scale_up"
-  security:
-    lockScaleDownOnThreat: ${lockOnThreat}
-    autoBlockMaliciousIPs: ${autoBlockIPs}
-    threatThreshold: 60.0
+    namespace: default
+  scalingRules:
+    minReplicas: ${minReplicas}
+    maxReplicas: ${maxReplicas}
+    targetRPSPerPod: ${targetRPS}
+    targetP95LatencyMs: 250
+    scaleUpCooldownSec: 15
+    scaleDownCooldownSec: 90
+    panicScaleFactor: ${headroom.toFixed(1)}
+  threatDetection:
+    bruteForceThresholdRPS: 40
+    errorRatioThresholdPct: 20.0
+    scaleDownLockoutSec: ${lockOnThreat ? 300 : 0}
+    dynamicNetworkPolicy:
+      enabled: ${autoBlockIPs}
+      blockTTLSec: 600
+  notifications:
+    slackWebhookURL: ""
 `;
 
   const handleCopy = () => {
