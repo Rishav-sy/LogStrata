@@ -1,163 +1,185 @@
 # 🪐 LogStrata
 
-> **Log-Driven Kubernetes Autoscaling & Dynamic DevSecOps Simulation Playground**
+> **Intelligent Log-Driven Kubernetes Autoscaling & Ingress Threat Mitigation Engine**
 
 [![CI](https://github.com/Rishav-sy/LogStrata/actions/workflows/ci.yml/badge.svg)](https://github.com/Rishav-sy/LogStrata/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-logstrata.pages.dev-blue?style=flat&logo=cloudflare)](https://logstrata.pages.dev)
-[![Next.js](https://img.shields.io/badge/Next.js-15+-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm%20%7C%20CRD-326CE5?style=flat&logo=kubernetes)](https://kubernetes.io/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://www.docker.com/)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-16+-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm%20v3%20%7C%20CRDs-326CE5?style=flat&logo=kubernetes)](https://kubernetes.io/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-LogStrata is a high-performance, proactive scaling and security orchestration engine. Instead of relying on traditional metrics polling (CPU/Memory HPA lag), LogStrata parses container stdout log streams directly from containerd sockets in real-time, matching transaction patterns and dynamic security threats to scale replicas and apply ingress firewall rules in milliseconds.
+LogStrata is a high-performance, proactive scaling and security orchestration platform. Instead of relying on traditional metrics polling (CPU/Memory HPA lag), LogStrata parses container stdout log streams directly from containerd sockets in real-time (< 0.5ms parsing latency), matching transaction patterns and dynamic security threats to scale replicas and apply ingress firewall rules in milliseconds.
 
-This repository hosts the **LogStrata Interactive DevOps Simulation Lab**, a real-time playground where developers can visualize ingress traffic, inject network failures/chaos anomalies, configure autoscaling bounds, and watch the cluster respond in real-time.
-
-🌐 **Live Production Deployment**: [https://logstrata.pages.dev](https://logstrata.pages.dev)
+🌐 **Live Production Deployment**: [https://logstrata.pages.dev](https://logstrata.pages.dev)  
+📖 **100-Hour Engineering Roadmap**: [`ROADMAP.md`](ROADMAP.md)
 
 ---
 
 ## 🚀 Key Features
 
-* **Proactive Log-Driven Scaling**: Mutate Kubernetes deployment replicas within milliseconds of traffic surges, bypassing the typical 15–60s metrics lag of HPAs.
-* **DevOps Chaos Simulation Lab**: Inject primary database failures, upstream API 500 error storms, JWT authentication faults, and service outage events.
-* **Custom Config Templates**: Save, load, and delete custom playground configuration states directly using browser `localStorage`.
-* **Secure Session Management**: Integrated client-side Supabase authentication supporting both traditional Email/Password and Google OAuth sign-in flows.
-* **Telemetry & Event Timeline**: Interactive HTML5 canvas charts showing CPU/error logs, a live log stream terminal, and a chronological event timeline.
-* **CDN Traffic Globe**: A 3D Three.js / React Three Fiber interactive globe visualizing inbound traffic requests from global CDN edge locations.
-* **Production Deployment Ready**: Native support for Cloudflare Pages, Docker multi-stage builds, and Kubernetes Helm packaging.
+* **Proactive Log-Driven Scaling**: Scale Kubernetes deployment replicas within milliseconds of traffic surges, bypassing the typical 15–60s metrics lag of HPAs.
+* **Sidecar-Less Ingestion DaemonSet (`cmd/logstrata-daemon`)**: Zero-network socket tailer reading raw container stdout streams with sub-millisecond overhead (benchmarked at ~880,000 lines/sec on a single core).
+* **Sliding-Window Transaction Rate (SWTR)**: In-memory circular buffer computing instantaneous RPS, rolling 5s/15s/60s throughput, and P50/P90/P95/P99 latency percentiles with 0 heap allocations per operation.
+* **Threat Shield & Scale-Down Lock**: Detects brute-force credential stuffing and DDoS floods, automatically locks scale-down events, and injects dynamic Kubernetes `NetworkPolicy` CIDR drops.
+* **Visual Policy Studio**: Web-based declarative policy builder synthesizing production-ready `LogAutoscalerPolicy` OpenAPI v3 CRDs with instant YAML download.
+* **Enterprise Observability**: Native Prometheus metrics exporter (`:8080/metrics`), Slack/Discord incident webhooks, and pre-built Grafana dashboards.
+* **DevOps Chaos Simulation Lab**: Interactive playground to simulate traffic surges, database timeouts, and service outages with 3D CDN globe visualizations.
 
 ---
 
 ## 🛠️ Architecture
 
-LogStrata runs as a lightweight daemonset on nodes, reading local containerd socket streams with zero overhead.
-
 ```mermaid
 graph TD
-    A[Clients & Edge CDN] -->|Traffic Surge / Threat| B[Ingress Controller / Nginx]
+    A[Clients & Edge Traffic] -->|Ingress Surge / Threat| B[Ingress Controller / Nginx]
     B -->|stdout stream| C[containerd socket /var/log/pods]
     C -->|sub-ms read| D[LogStrata DaemonSet Agent]
-    D -->|Match Rules / JSON Parse| E[LogStrata Controller Loop]
-    E -->|Proactive Patch| F[Kubernetes API Server]
-    F -->|Scale Pods 3 ➔ 9| G[ReplicaSet Controller]
-    E -->|Update Ingress IP Blocks| B
+    D -->|SWTR Aggregation & Anomaly Check| E[LogStrata Operator Controller]
+    E -->|Atomic JSON Patch| F[Kubernetes Deployment / HPA]
+    F -->|Scale Pods 3 ➔ 9| G[ReplicaSet Workloads]
+    E -->|Inject NetworkPolicy / Drop CIDR| H[Kubernetes Ingress Filter]
 ```
 
 ---
 
-## 📦 Tech Stack
+## ⚡ 5-Minute Production Quickstart
 
-* **Framework**: Next.js 16 (App Router, Tailwind CSS, Stark aesthetics)
-* **3D Globe Visual**: Three.js / React Three Fiber / COBE WebGL
-* **Telemetry Canvas**: Native HTML5 2D Canvas Renderer
-* **Authentication**: Supabase Auth Client SDK
-* **Containerization**: Docker (multi-stage Nginx) & Docker Compose
-* **Orchestration**: Kubernetes Helm Charts & Custom Resource Definitions (CRDs)
-* **Edge Deployment**: Cloudflare Pages / Workers
-
----
-
-## ⚙️ Getting Started
-
-### Prerequisites
-
-* Node.js (v18 or higher)
-* Supabase Project (for Authentication credentials)
-
-### 1. Clone the repository & Install dependencies
+Deploy LogStrata CRDs, node agent DaemonSet, and operator controller in a single command:
 
 ```bash
+# Clone the repository
 git clone https://github.com/Rishav-sy/LogStrata.git
 cd LogStrata
-npm install
+
+# Run automated cluster installer
+./scripts/install.sh
 ```
 
-### 2. Configure Environment Variables
-
-Create a `.env.local` file in the root directory:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-### 3. Run Development Server
+Audit your cluster components at any time:
 
 ```bash
+./scripts/verify-cluster.sh
+```
+
+---
+
+## 📦 Repository Structure
+
+```text
+LogStrata/
+├── cmd/
+│   ├── logstrata-daemon/       # Node agent daemon: socket tailer, SWTR engine, Prometheus exporter
+│   └── logstrata-controller/   # Operator reconciler: mutates Deployment replicas & NetworkPolicies
+├── pkg/
+│   ├── parser/                 # High-throughput CRI/JSON/Combined log tokenizer (~1.1 µs/op)
+│   ├── engine/                 # Sliding-Window Transaction Rate (SWTR) & latency percentiles
+│   ├── detector/               # Threat detection (brute-force IP scanner & surge analyzer)
+│   ├── scaler/                 # Capacity decision engine & bounded replica calculation
+│   ├── controller/             # Kubernetes CRD reconciler loop & atomic JSON patches
+│   ├── waf/                    # Ingress firewall, TTL blocklist manager & Cilium policies
+│   └── notifier/               # Multi-channel webhook alerts (Slack, Discord, generic)
+├── charts/logstrata/           # Production Helm v3 chart with CRDs, DaemonSet, and Controller
+├── deploy/
+│   ├── crds/                   # LogAutoscalerPolicy & LogThreatPolicy OpenAPI v3 specs
+│   ├── daemonset/              # Standalone agent DaemonSet manifest
+│   ├── grafana/                # Ready-to-import Grafana dashboard JSON
+│   └── examples/               # Sample policy manifests
+├── scripts/                    # Automated cluster installation and health verification scripts
+├── src/                        # Interactive Next.js 16 Web Dashboard & Visual Policy Studio
+└── ROADMAP.md                  # Comprehensive 100-Hour Engineering Roadmap
+```
+
+---
+
+## ☸️ Kubernetes Custom Resource Definitions
+
+### 1. LogAutoscalerPolicy (`core.logstrata.io/v1alpha1`)
+
+```yaml
+apiVersion: core.logstrata.io/v1alpha1
+kind: LogAutoscalerPolicy
+metadata:
+  name: frontend-log-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: commerce-frontend
+  minReplicas: 3
+  maxReplicas: 25
+  targetRPSPerPod: 120.0
+  headroomFactor: 1.25
+  rules:
+    - metric: "http_requests_per_second"
+      threshold: 360.0
+      window: "10s"
+      action: "scale_up"
+  security:
+    lockScaleDownOnThreat: true
+    autoBlockMaliciousIPs: true
+    threatThreshold: 60.0
+```
+
+### 2. LogThreatPolicy (`security.logstrata.io/v1alpha1`)
+
+```yaml
+apiVersion: security.logstrata.io/v1alpha1
+kind: LogThreatPolicy
+metadata:
+  name: login-brute-force-defense
+spec:
+  targetIngressRef:
+    name: main-api-ingress
+  threatMetrics:
+    - type: RegexPatternMatch
+      pattern: "auth_failed"
+      thresholdPerMinute: 30
+      action:
+        - type: IPBlocklist
+          duration: "30m"
+        - type: ScalingModifierLock
+          lockMinReplicas: 8
+```
+
+---
+
+## 📊 Observability & Metrics
+
+The daemon exposes standard Prometheus metrics on `:8080/metrics`:
+
+| Metric | Type | Description |
+| :--- | :--- | :--- |
+| `logstrata_rps` | Gauge | Instantaneous transaction throughput per second |
+| `logstrata_p95_latency_ms` | Gauge | Rolling P95 response time in milliseconds |
+| `logstrata_current_replicas` | Gauge | Current active workload replica count |
+| `logstrata_desired_replicas` | Gauge | Computed scale target recommended by LogStrata |
+| `logstrata_blocked_ips_count` | Gauge | Number of actively isolated attacker IPs |
+| `logstrata_total_ingested` | Counter | Total container log records processed |
+
+Import the pre-configured Grafana dashboard from [`deploy/grafana/logstrata-dashboard.json`](deploy/grafana/logstrata-dashboard.json).
+
+---
+
+## 💻 Local Development
+
+### Run Go Tests
+```bash
+go test ./... -v
+```
+
+### Run Web Simulator
+```bash
+npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application in the browser.
-
-### 4. Build & Export Static Site
-
+### Build Go Binaries
 ```bash
-npm run build
+go build -o bin/logstrata-daemon ./cmd/logstrata-daemon
+go build -o bin/logstrata-controller ./cmd/logstrata-controller
 ```
-
-The static build will be generated in the `out/` directory, ready to be hosted on static platforms like Cloudflare Pages.
-
----
-
-## 🐳 Docker & Docker Compose
-
-Run the entire playground locally in a containerized Nginx environment:
-
-```bash
-# Build and run with Docker Compose
-docker compose up -d
-
-# Or build the Docker image directly
-docker build -t logstrata-playground .
-docker run -p 3000:80 logstrata-playground
-```
-
-Access the app at [http://localhost:3000](http://localhost:3000).
-
----
-
-## ☸️ Kubernetes Deployment
-
-### Deploying the Playground via Helm
-
-Install the chart directly into your Kubernetes cluster:
-
-```bash
-# Lint the chart
-helm lint charts/logstrata
-
-# Install chart
-helm install logstrata ./charts/logstrata \
-  --set supabase.url="https://your-project-id.supabase.co" \
-  --set supabase.anonKey="your-supabase-anon-key"
-```
-
-### Deploying the LogStrata CRD & DaemonSet
-
-To deploy the LogStrata Custom Resource Definition and node DaemonSet:
-
-```bash
-# 1. Apply the LogAutoscalerPolicy CRD
-kubectl apply -f deploy/crds/logautoscalerpolicy-crd.yaml
-
-# 2. Deploy the node agent DaemonSet
-kubectl apply -f deploy/daemonset/agent-daemonset.yaml
-
-# 3. Create your first scaling policy
-kubectl apply -f deploy/examples/sample-policy.yaml
-```
-
----
-
-## ☁️ Cloudflare Pages Deployment
-
-Deploy the latest build directly to Cloudflare Pages:
-
-```bash
-npm run deploy
-```
-
-*(Executes `wrangler pages deploy out --project-name logstrata --branch main`)*
 
 ---
 
