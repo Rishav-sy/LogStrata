@@ -1,0 +1,6 @@
+# Artifact Hub repository metadata file
+# https://artifacthub.io/docs/topics/repositories/repository-metadata/
+repositoryID: logstrata
+owners:
+  - name: Rishav
+    email: rishav@logstrata.io

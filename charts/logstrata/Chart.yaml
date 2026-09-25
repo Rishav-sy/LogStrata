@@ -1,6 +1,45 @@
 apiVersion: v2
 name: logstrata
-description: A Helm chart for the LogStrata DevOps Simulation Playground
+description: Intelligent Log-Driven Kubernetes Autoscaling & Ingress Threat Mitigation Engine
 type: application
-version: 0.1.0
+version: 1.0.0
 appVersion: "1.0.0"
+home: https://logstrata.pages.dev
+sources:
+  - https://github.com/Rishav-sy/LogStrata
+maintainers:
+  - name: Rishav
+    url: https://github.com/Rishav-sy
+icon: https://raw.githubusercontent.com/Rishav-sy/LogStrata/main/public/favicon.ico
+keywords:
+  - kubernetes
+  - autoscaling
+  - hpa
+  - logs
+  - containerd
+  - threat-mitigation
+  - ebpf
+  - waf
+  - ratelimit
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/operator: "true"
+  artifacthub.io/category: "integration-delivery"
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://logstrata.pages.dev/docs/getting-started
+    - name: Source
+      url: https://github.com/Rishav-sy/LogStrata
+    - name: Roadmap
+      url: https://github.com/Rishav-sy/LogStrata/blob/main/ROADMAP.md
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial v1.0.0 release of LogStrata
+    - kind: added
+      description: Zero-copy containerd socket log harvester DaemonSet
+    - kind: added
+      description: HA Operator controller with atomic JSON patch mutator and circuit breaker
+    - kind: added
+      description: Validating and Mutating Admission Webhooks for CRD defaults
+    - kind: added
+      description: Dynamic NetworkPolicy and Cilium eBPF ingress threat isolation

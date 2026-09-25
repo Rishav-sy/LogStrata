@@ -7,12 +7,14 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm%20v3%20%7C%20CRDs-326CE5?style=flat&logo=kubernetes)](https://kubernetes.io/)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/logstrata)](https://artifacthub.io/packages/search?repo=logstrata)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 LogStrata is a high-performance, proactive scaling and security orchestration platform for Kubernetes. Instead of relying on traditional metrics polling (CPU/Memory HPA lag), LogStrata parses container stdout log streams directly from containerd sockets in real-time (< 0.5ms parsing latency), matching transaction patterns and dynamic security threats to scale replicas and apply ingress firewall rules in milliseconds.
 
 🌐 **Live Production Deployment**: [https://logstrata.pages.dev](https://logstrata.pages.dev)  
 📖 **100-Hour Engineering Roadmap**: [`ROADMAP.md`](ROADMAP.md)  
+📊 **Detailed Benchmarking Report**: [`BENCHMARKS.md`](BENCHMARKS.md)  
 🚀 **Production Operations Guide**: [`PRODUCTION.md`](PRODUCTION.md)  
 📝 **Changelog**: [`CHANGELOG.md`](CHANGELOG.md)
 
