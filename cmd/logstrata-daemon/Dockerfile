@@ -5,15 +5,18 @@ FROM golang:1.22-bookworm AS builder
 
 WORKDIR /workspace
 
+ARG TARGETOS
+ARG TARGETARCH
+
 # Cache dependencies before copying source
-COPY go.mod go.sum ./
-RUN go mod download
+COPY go.mod go.sum* ./
+RUN [ -s go.sum ] && go mod download || true
 
 # Copy all Go source
 COPY . .
 
 # Build a fully static binary — no libc dependency
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
     go build \
       -ldflags="-s -w -extldflags '-static'" \
       -trimpath \

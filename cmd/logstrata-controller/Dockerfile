@@ -5,13 +5,16 @@ FROM golang:1.22-bookworm AS builder
 
 WORKDIR /workspace
 
-COPY go.mod go.sum ./
-RUN go mod download
+ARG TARGETOS
+ARG TARGETARCH
+
+COPY go.mod go.sum* ./
+RUN [ -s go.sum ] && go mod download || true
 
 COPY . .
 
 # Build static binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
     go build \
       -ldflags="-s -w -extldflags '-static'" \
       -trimpath \
