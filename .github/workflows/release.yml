@@ -90,6 +90,7 @@ jobs:
           severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 2: Package and publish Helm chart to GitHub Pages

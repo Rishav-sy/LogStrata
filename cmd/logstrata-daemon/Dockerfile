@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build — Full Go toolchain (CGO disabled for static binary)
 # =============================================================================
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.24-bookworm AS builder
 
 WORKDIR /workspace
 
