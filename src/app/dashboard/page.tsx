@@ -1004,10 +1004,18 @@ export default function Dashboard() {
                 <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
                 <span>DAEMON: CONNECTING…</span>
               </div>
+            ) : daemonConnectionState === "simulated" ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[11px] font-mono font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                <span>DEMO STREAM</span>
+                {liveTelemetry && (
+                  <span className="opacity-75 ml-0.5">{liveTelemetry.rps.toFixed(0)} RPS</span>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-hairline bg-canvas-soft text-body text-[11px] font-mono">
                 <span className="h-1.5 w-1.5 rounded-full bg-body/40" />
-                <span>DAEMON: OFFLINE (SIM)</span>
+                <span>DAEMON: OFFLINE</span>
               </div>
             )}
 
