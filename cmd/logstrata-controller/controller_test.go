@@ -163,3 +163,67 @@ func TestControllerFetchTelemetry(t *testing.T) {
 		t.Fatalf("expected blocked IP 1.2.3.4, got %v", telemetry.BlockedIPs)
 	}
 }
+
+func TestControllerMitigationsEndpoint(t *testing.T) {
+	cs := NewControllerServer(DefaultControllerConfig())
+	defer cs.Stop()
+
+	// 1. Initial mitigations should have 0 blocked IPs
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/mitigations", nil)
+	rec := httptest.NewRecorder()
+	cs.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var initMitigations ActiveMitigations
+	if err := json.Unmarshal(rec.Body.Bytes(), &initMitigations); err != nil {
+		t.Fatalf("failed to decode initial mitigations: %v", err)
+	}
+	if initMitigations.BlockedIPsCount != 0 {
+		t.Fatalf("expected 0 blocked IPs initially, got %d", initMitigations.BlockedIPsCount)
+	}
+
+	// 2. Perform step with blocked IPs
+	blockedIP := "192.0.2.45"
+	telemetry := &DaemonTelemetry{
+		Status:          "DEGRADED",
+		RPS:             300.0,
+		CurrentReplicas: 3,
+		BlockedIPs:      []string{blockedIP},
+		ScaleDownLocked: true,
+	}
+	cs.Step(telemetry)
+
+	// 3. Query mitigations again
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/mitigations", nil)
+	rec2 := httptest.NewRecorder()
+	cs.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec2.Code)
+	}
+
+	var updatedMitigations ActiveMitigations
+	if err := json.Unmarshal(rec2.Body.Bytes(), &updatedMitigations); err != nil {
+		t.Fatalf("failed to decode updated mitigations: %v", err)
+	}
+
+	if updatedMitigations.BlockedIPsCount != 1 {
+		t.Fatalf("expected 1 blocked IP, got %d", updatedMitigations.BlockedIPsCount)
+	}
+	if len(updatedMitigations.BlockedIPs) != 1 || updatedMitigations.BlockedIPs[0] != blockedIP {
+		t.Fatalf("expected blocked IP %s, got %v", blockedIP, updatedMitigations.BlockedIPs)
+	}
+	if updatedMitigations.CiliumCCNP == "" {
+		t.Fatalf("expected non-empty Cilium CCNP manifest")
+	}
+	if updatedMitigations.EbpfXdpConfig == "" {
+		t.Fatalf("expected non-empty eBPF XDP config")
+	}
+	if updatedMitigations.NginxIngressConfigMap == "" {
+		t.Fatalf("expected non-empty NGINX Ingress ConfigMap")
+	}
+}
+

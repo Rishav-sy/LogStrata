@@ -12,6 +12,7 @@ import (
 	"github.com/Rishav-sy/LogStrata/pkg/controller"
 	"github.com/Rishav-sy/LogStrata/pkg/engine"
 	"github.com/Rishav-sy/LogStrata/pkg/notifier"
+	"github.com/Rishav-sy/LogStrata/pkg/waf"
 )
 
 // ControllerConfig holds flags and runtime configurations for the operator
@@ -42,6 +43,16 @@ type DaemonTelemetry struct {
 	ScaleDownLocked bool     `json:"scale_down_locked"`
 }
 
+// ActiveMitigations stores generated multi-layer WAF, eBPF XDP, and Ingress block policies
+type ActiveMitigations struct {
+	LastUpdated           time.Time `json:"last_updated"`
+	BlockedIPsCount       int       `json:"blocked_ips_count"`
+	BlockedIPs            []string  `json:"blocked_ips"`
+	CiliumCCNP            string    `json:"cilium_ccnp_yaml"`
+	EbpfXdpConfig         string    `json:"ebpf_xdp_config"`
+	NginxIngressConfigMap string    `json:"nginx_ingress_cm"`
+}
+
 // ControllerServer manages Kubernetes CRD reconciliation and forensic audit logging
 type ControllerServer struct {
 	Config     ControllerConfig
@@ -50,11 +61,12 @@ type ControllerServer struct {
 	Watchdog   *controller.CircuitBreakerWatchdog
 	Mux        *http.ServeMux
 
-	mu             sync.RWMutex
-	history        []controller.ReconcileResult
-	policies       map[string]controller.LogAutoscalerPolicySpec
-	activeReplicas map[string]int
-	stopCh         chan struct{}
+	mu                sync.RWMutex
+	history           []controller.ReconcileResult
+	policies          map[string]controller.LogAutoscalerPolicySpec
+	activeReplicas    map[string]int
+	latestMitigations ActiveMitigations
+	stopCh            chan struct{}
 }
 
 // NewControllerServer constructs and sets up an operator server instance
@@ -104,6 +116,7 @@ func (cs *ControllerServer) registerRoutes() {
 	cs.Mux.HandleFunc("/healthz", cs.handleHealthz)
 	cs.Mux.HandleFunc("/api/v1/reconciliations", cs.handleReconciliations)
 	cs.Mux.HandleFunc("/api/v1/policies", cs.handlePolicies)
+	cs.Mux.HandleFunc("/api/v1/mitigations", cs.handleMitigations)
 }
 
 func (cs *ControllerServer) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +145,14 @@ func (cs *ControllerServer) handlePolicies(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(cs.policies)
 }
 
+func (cs *ControllerServer) handleMitigations(w http.ResponseWriter, r *http.Request) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cs.latestMitigations)
+}
+
 // Step runs a single reconciliation iteration, returning the result
 func (cs *ControllerServer) Step(telemetry *DaemonTelemetry) controller.ReconcileResult {
 	cs.mu.Lock()
@@ -157,6 +178,17 @@ func (cs *ControllerServer) Step(telemetry *DaemonTelemetry) controller.Reconcil
 		telemetry.BlockedIPs,
 		telemetry.ScaleDownLocked,
 	)
+
+	if len(telemetry.BlockedIPs) > 0 {
+		cs.latestMitigations = ActiveMitigations{
+			LastUpdated:           time.Now(),
+			BlockedIPsCount:       len(telemetry.BlockedIPs),
+			BlockedIPs:            telemetry.BlockedIPs,
+			CiliumCCNP:            waf.GenerateCiliumClusterwideNetworkPolicy("logstrata-ebpf-xdp-drop", telemetry.BlockedIPs),
+			EbpfXdpConfig:         waf.GenerateEbpfXdpMapConfig("xdp_drop_ips", telemetry.BlockedIPs),
+			NginxIngressConfigMap: waf.GenerateNginxIngressConfigMap("logstrata-nginx-blocklist", telemetry.BlockedIPs),
+		}
+	}
 
 	if res.ScalePatchDispatched {
 		cs.activeReplicas[target] = res.DesiredReplicas

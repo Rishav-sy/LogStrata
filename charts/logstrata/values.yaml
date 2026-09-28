@@ -235,3 +235,11 @@ webhook:
   service:
     port: 443
     targetPort: 9443
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Incident & Scaling Notifications (Slack, Discord, generic Webhooks)
+# ──────────────────────────────────────────────────────────────────────────────
+notifications:
+  enabled: false
+  webhookURL: ""
+

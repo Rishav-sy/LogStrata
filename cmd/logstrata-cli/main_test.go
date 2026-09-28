@@ -70,3 +70,31 @@ func TestCLIEvaluate(t *testing.T) {
 		"--current-replicas", "2",
 	})
 }
+
+func TestCLIChaos(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/ingest" {
+			t.Fatalf("Unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ingested":10}`))
+	}))
+	defer ts.Close()
+
+	scenarios := []string{"corrupt-json", "slow-stream", "http500-wave"}
+	for _, sc := range scenarios {
+		handleChaos([]string{
+			"--target", ts.URL,
+			"--scenario", sc,
+			"--duration", "150ms",
+		})
+	}
+
+	// Also test 50k-burst scenario with a small burst-total for test speed
+	handleChaos([]string{
+		"--endpoint", ts.URL,
+		"--scenario", "50k-burst",
+		"--burst-total", "200",
+	})
+}
+

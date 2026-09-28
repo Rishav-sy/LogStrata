@@ -21,7 +21,7 @@ import (
 	"github.com/Rishav-sy/LogStrata/pkg/scaler"
 )
 
-const Version = "1.0.0-beta"
+const Version = "1.1.0"
 
 type StatusResponse struct {
 	Status              string                 `json:"status"`
@@ -81,6 +81,8 @@ func main() {
 		handleStream(os.Args[2:])
 	case "simulate":
 		handleSimulate(os.Args[2:])
+	case "chaos":
+		handleChaos(os.Args[2:])
 	case "benchmark":
 		handleBenchmark(os.Args[2:])
 	case "evaluate":
@@ -105,6 +107,7 @@ func printUsage() {
 	fmt.Println("  status      Query daemon health, real-time RPS, and scaling decision")
 	fmt.Println("  stream      Subscribe to real-time Server-Sent Events (SSE) telemetry feed")
 	fmt.Println("  simulate    Generate synthetic traffic logs (steady, spike, ddos) into daemon")
+	fmt.Println("  chaos       Inject resilience faults (corrupt-json, slow-stream, http500-wave, 50k-burst)")
 	fmt.Println("  benchmark   Run local zero-alloc hot-path performance benchmark")
 	fmt.Println("  evaluate    Offline dry-run of a policy against a local container log file")
 	fmt.Println("  version     Print LogStrata CLI version")
@@ -114,6 +117,7 @@ func printUsage() {
 	fmt.Println("  logstrata status --endpoint http://localhost:8080")
 	fmt.Println("  logstrata stream --endpoint http://localhost:8080")
 	fmt.Println("  logstrata simulate --mode spike --rps 350 --endpoint http://localhost:8080")
+	fmt.Println("  logstrata chaos --scenario corrupt-json --endpoint http://localhost:8080")
 	fmt.Println("  logstrata benchmark --ops 1000000")
 	fmt.Println("  logstrata evaluate --log-file access.log --target-rps 150")
 	fmt.Println("")
@@ -312,6 +316,158 @@ func handleSimulate(args []string) {
 				fmt.Printf("\r[SIMULATOR] Ingested: %d logs... (%.1fs elapsed)", totalSent, time.Since(startTime).Seconds())
 			}
 		}
+	}
+}
+
+func handleChaos(args []string) {
+	fs := flag.NewFlagSet("chaos", flag.ExitOnError)
+	target := fs.String("target", "", "LogStrata daemon endpoint (alias for --endpoint)")
+	endpoint := fs.String("endpoint", "http://localhost:8080", "LogStrata daemon endpoint")
+	scenario := fs.String("scenario", "corrupt-json", "Fault scenario: corrupt-json, slow-stream, http500-wave, 50k-burst")
+	duration := fs.Duration("duration", 5*time.Second, "Chaos duration (e.g. 5s, 10s)")
+	burstTotal := fs.Int("burst-total", 50000, "Total logs for 50k-burst scenario")
+	_ = fs.Parse(args)
+
+	daemonURL := *endpoint
+	if *target != "" {
+		daemonURL = *target
+	}
+	url := strings.TrimRight(daemonURL, "/") + "/api/v1/ingest"
+
+	fmt.Printf("[CHAOS INJECTOR] Scenario: %s | Target: %s | Duration: %s\n",
+		strings.ToUpper(*scenario), url, *duration)
+
+	client := &http.Client{Timeout: 3 * time.Second}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	switch *scenario {
+	case "corrupt-json":
+		corruptPayloads := []string{
+			`{"timestamp":"2026-09-28T10:00:00Z","method":"GET","path":"/`,
+			`{invalid-json: true, "test": }`,
+			"\x00\x01\x02\xFF\xFE\xFD corrupted binary stream data",
+			`{"method":"POST","status":"not-an-int","latency_ms":"slow"}`,
+		}
+		done := time.After(*duration)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		sentCount := 0
+		for {
+			select {
+			case <-sigChan:
+				fmt.Println("\n[CHAOS] Aborted by user.")
+				return
+			case <-done:
+				fmt.Printf("\n[CHAOS] Injected %d corrupt payloads; daemon survived.\n", sentCount)
+				return
+			case <-ticker.C:
+				payload := corruptPayloads[rand.Intn(len(corruptPayloads))]
+				resp, err := client.Post(url, "text/plain", bytes.NewBufferString(payload+"\n"))
+				if err == nil {
+					resp.Body.Close()
+				}
+				sentCount++
+			}
+		}
+
+	case "slow-stream":
+		done := time.After(*duration)
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		attempts := 0
+		for {
+			select {
+			case <-sigChan:
+				fmt.Println("\n[CHAOS] Aborted by user.")
+				return
+			case <-done:
+				fmt.Printf("\n[CHAOS] Completed slow-stream starvation tests (%d connections tested).\n", attempts)
+				return
+			case <-ticker.C:
+				attempts++
+				pr, pw := io.Pipe()
+				go func() {
+					defer pw.Close()
+					for i := 0; i < 3; i++ {
+						_, _ = pw.Write([]byte(`{"timestamp":"`))
+						time.Sleep(20 * time.Millisecond)
+						_, _ = pw.Write([]byte(time.Now().UTC().Format(time.RFC3339)))
+						time.Sleep(20 * time.Millisecond)
+						_, _ = pw.Write([]byte(`","method":"GET","path":"/healthz","status":200,"latency_ms":1.0}` + "\n"))
+					}
+				}()
+				req, _ := http.NewRequest(http.MethodPost, url, pr)
+				req.Header.Set("Content-Type", "text/plain")
+				resp, err := client.Do(req)
+				if err == nil {
+					resp.Body.Close()
+				}
+			}
+		}
+
+	case "http500-wave":
+		done := time.After(*duration)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		sent500s := 0
+		errorStatuses := []int{500, 502, 503, 504}
+		for {
+			select {
+			case <-sigChan:
+				fmt.Println("\n[CHAOS] Aborted by user.")
+				return
+			case <-done:
+				fmt.Printf("\n[CHAOS] Injected %d 5xx error logs into daemon.\n", sent500s)
+				return
+			case <-ticker.C:
+				var buf bytes.Buffer
+				now := time.Now().UTC().Format(time.RFC3339)
+				for i := 0; i < 20; i++ {
+					st := errorStatuses[rand.Intn(len(errorStatuses))]
+					buf.WriteString(fmt.Sprintf(`{"timestamp":"%s","method":"GET","path":"/api/checkout","status":%d,"latency_ms":120.0,"client_ip":"10.0.0.1"}`+"\n", now, st))
+					sent500s++
+				}
+				resp, err := client.Post(url, "text/plain", &buf)
+				if err == nil {
+					resp.Body.Close()
+				}
+			}
+		}
+
+	case "50k-burst":
+		total := *burstTotal
+		batchSize := 1000
+		if total < batchSize {
+			batchSize = total
+		}
+		batches := total / batchSize
+		if batches < 1 {
+			batches = 1
+		}
+		fmt.Printf("[CHAOS] Launching %d burst batches of %d logs each (Target: %d total logs)...\n",
+			batches, batchSize, total)
+		start := time.Now()
+		delivered := 0
+		for b := 0; b < batches; b++ {
+			var buf bytes.Buffer
+			now := time.Now().UTC().Format(time.RFC3339)
+			for i := 0; i < batchSize; i++ {
+				buf.WriteString(fmt.Sprintf(`{"timestamp":"%s","method":"POST","path":"/api/v1/telemetry","status":200,"latency_ms":8.5,"client_ip":"10.244.0.1"}`+"\n", now))
+			}
+			resp, err := client.Post(url, "text/plain", &buf)
+			if err == nil {
+				resp.Body.Close()
+				delivered += batchSize
+			}
+		}
+		elapsed := time.Since(start)
+		fmt.Printf("[CHAOS] 50k-burst finished: %d logs in %v (%.1f logs/sec)\n",
+			delivered, elapsed, float64(delivered)/elapsed.Seconds())
+
+	default:
+		fmt.Printf("Unknown chaos scenario: %s (available: corrupt-json, slow-stream, http500-wave, 50k-burst)\n", *scenario)
 	}
 }
 

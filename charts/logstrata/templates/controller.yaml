@@ -56,6 +56,9 @@ spec:
             - "--leader-elect=true"
             - "--leader-elect-namespace={{ .Values.controller.leaderElection.namespace | default .Release.Namespace }}"
             {{- end }}
+            {{- if and .Values.notifications.enabled .Values.notifications.webhookURL }}
+            - "--webhook-url={{ .Values.notifications.webhookURL }}"
+            {{- end }}
           ports:
             - name: http-status
               containerPort: 8081
