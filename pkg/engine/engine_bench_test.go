@@ -114,10 +114,6 @@ func BenchmarkEngine_HighThroughput_100kLinesPerSec(b *testing.B) {
 
 	// Pre-parse a batch of diverse log lines
 	const batchSize = 1000
-	records := make([]interface{ IsRecord() }, 0, batchSize)
-	// Actually pre-parse into engine's Record type
-	type Recordable interface{}
-	_ = records
 
 	lines := make([]string, batchSize)
 	for i := range lines {

@@ -132,10 +132,10 @@ func GenerateEnvoyRateLimit(cfg Config) string {
 
 	for _, rule := range cfg.Rules {
 		requestsPerMinute := int(rule.RequestsPerSecond * 60)
-		sb.WriteString(fmt.Sprintf("  - key: path\n"))
+		sb.WriteString("  - key: path\n")
 		sb.WriteString(fmt.Sprintf("    value: \"%s\"\n", rule.Path))
-		sb.WriteString(fmt.Sprintf("    rate_limit:\n"))
-		sb.WriteString(fmt.Sprintf("      unit: MINUTE\n"))
+		sb.WriteString("    rate_limit:\n")
+		sb.WriteString("      unit: MINUTE\n")
 		sb.WriteString(fmt.Sprintf("      requests_per_unit: %d\n", requestsPerMinute))
 	}
 
@@ -214,7 +214,7 @@ func GenerateCiliumNetworkPolicyWithRateLimit(cfg Config, podSelector map[string
 
 	for _, rule := range cfg.Rules {
 		rps := int(rule.RequestsPerSecond)
-		sb.WriteString(fmt.Sprintf("        - method: \".*\"\n"))
+		sb.WriteString("        - method: \".*\"\n")
 		sb.WriteString(fmt.Sprintf("          path: \"%s.*\"\n", rule.Path))
 		sb.WriteString(fmt.Sprintf("          # Rate: %d req/s (enforced via Cilium L7 proxy)\n", rps))
 	}
