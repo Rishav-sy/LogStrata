@@ -1,0 +1,54 @@
+apiVersion: v1
+entries:
+  logstrata:
+  - annotations:
+      artifacthub.io/category: integration-delivery
+      artifacthub.io/changes: |
+        - kind: added
+          description: Initial v1.0.0 release of LogStrata
+        - kind: added
+          description: Zero-copy containerd socket log harvester DaemonSet
+        - kind: added
+          description: HA Operator controller with atomic JSON patch mutator and circuit breaker
+        - kind: added
+          description: Validating and Mutating Admission Webhooks for CRD defaults
+        - kind: added
+          description: Dynamic NetworkPolicy and Cilium eBPF ingress threat isolation
+      artifacthub.io/license: MIT
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://logstrata.pages.dev/docs/getting-started
+        - name: Source
+          url: https://github.com/Rishav-sy/LogStrata
+        - name: Roadmap
+          url: https://github.com/Rishav-sy/LogStrata/blob/main/ROADMAP.md
+      artifacthub.io/operator: "true"
+    apiVersion: v2
+    appVersion: v1.1.0
+    created: "2026-09-28T08:38:36.23922387Z"
+    description: Intelligent Log-Driven Kubernetes Autoscaling & Ingress Threat Mitigation
+      Engine
+    digest: 1b6525e720bca237e0ffd9ea7c986c9fe32d343f534d48b9aac365a863ccbd27
+    home: https://logstrata.pages.dev
+    icon: https://raw.githubusercontent.com/Rishav-sy/LogStrata/main/public/favicon.ico
+    keywords:
+    - kubernetes
+    - autoscaling
+    - hpa
+    - logs
+    - containerd
+    - threat-mitigation
+    - ebpf
+    - waf
+    - ratelimit
+    maintainers:
+    - name: Rishav
+      url: https://github.com/Rishav-sy
+    name: logstrata
+    sources:
+    - https://github.com/Rishav-sy/LogStrata
+    type: application
+    urls:
+    - https://Rishav-sy.github.io/LogStrata/logstrata-1.1.0.tgz
+    version: 1.1.0
+generated: "2026-09-28T08:38:36.2385536Z"
