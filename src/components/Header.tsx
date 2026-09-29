@@ -97,7 +97,7 @@ export function Header() {
               LogStrata
             </span>
             <span className="border border-hairline px-1.5 py-0.5 font-mono text-[9px] uppercase text-mute tracking-wider rounded-[4px]">
-              v1.0.0
+              v1.1.0
             </span>
           </Link>
 
@@ -106,6 +106,11 @@ export function Header() {
             <HeaderNavLink
               href="/#features"
               label="Features"
+              isActive={false}
+            />
+            <HeaderNavLink
+              href="/#benchmarks"
+              label="Benchmarks"
               isActive={false}
             />
             <HeaderNavLink

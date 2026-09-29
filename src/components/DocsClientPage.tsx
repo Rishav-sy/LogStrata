@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CrdPlayground } from "@/components/CrdPlayground";
 
 interface MenuItem {
   label: string;
@@ -345,6 +346,14 @@ spec:
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-ink">Interactive CRD Policy Builder & Validator</h2>
+          <p className="text-xs text-body leading-relaxed">
+            Customize target deployments, replica boundaries, and security lockout rules with real-time schema validation:
+          </p>
+          <CrdPlayground />
         </section>
       </div>
     ),

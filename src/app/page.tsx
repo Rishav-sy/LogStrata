@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { HeroDiagram } from "@/components/HeroDiagram";
 import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
 import { PolicyStudio } from "@/components/PolicyStudio";
+import { BenchmarkVisualizer } from "@/components/BenchmarkVisualizer";
 import { FallingPattern } from "@/components/ui/falling-pattern";
 import { Pricing } from "@/components/ui/pricing";
 import { FaqSectionWithCategories } from "@/components/blocks/faq-with-categories";
@@ -833,6 +834,13 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* SECTION: INTERACTIVE BENCHMARKS & COST LAB */}
+      <section id="benchmarks" className="py-24 px-6 border-b border-hairline bg-canvas">
+        <div className="mx-auto max-w-[1400px]">
+          <BenchmarkVisualizer />
         </div>
       </section>
 

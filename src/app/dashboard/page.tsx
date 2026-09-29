@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useDaemonStream } from "@/hooks/useDaemonStream";
 import type { DaemonStreamPayload } from "@/hooks/useDaemonStream";
+import { ClusterTopologyMap } from "@/components/ClusterTopologyMap";
 
 interface TelemetryPoint {
   rps: number;
@@ -1824,6 +1825,15 @@ export default function Dashboard() {
               Simulated Kubernetes cluster edge ingress routing and multi-region CDN traffic requests passing through global gateway sharding regions.
             </p>
           </div>
+        </div>
+
+        {/* 6. Kubernetes Cluster Topology & Live Pod Map */}
+        <div className="mb-6">
+          <ClusterTopologyMap
+            containers={containers}
+            currentRps={liveTelemetry?.rps ?? rps}
+            blockedCount={liveTelemetry?.blocked_ips_count ?? 42}
+          />
         </div>
 
         {/* 7. Live Log Terminal (Full Width) */}
