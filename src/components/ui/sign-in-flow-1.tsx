@@ -559,6 +559,16 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                           {mode === "signin" ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
                         </button>
                       </div>
+
+                      <div className="pt-4 border-t border-white/10 mt-4">
+                        <Link
+                          href="/dashboard"
+                          className="w-full rounded-full border border-white/20 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-mono py-2.5 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>Launch Live Playground (Guest Access)</span>
+                        </Link>
+                      </div>
                     </div>
                     
                     <p className="text-xs text-white/40 pt-10">

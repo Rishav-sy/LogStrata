@@ -526,7 +526,7 @@ export function HeroPipelineFlow() {
       </div>
 
       {/* 3. Canvas Area: React Flow Canvas with Animated Beam Edges */}
-      <div className="relative w-full h-[390px] bg-zinc-950 overflow-hidden">
+      <div className="relative w-full h-[440px] bg-zinc-950 overflow-hidden">
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -535,7 +535,7 @@ export function HeroPipelineFlow() {
             edgeTypes={edgeTypes}
             onNodeClick={onNodeClick}
             fitView
-            fitViewOptions={{ padding: 0.12 }}
+            fitViewOptions={{ padding: 0.18 }}
             zoomOnScroll={false}
             panOnDrag={false}
             nodesDraggable={false}

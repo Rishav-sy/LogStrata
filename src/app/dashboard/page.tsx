@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { GlobeCdn } from "@/components/ui/cobe-globe-cdn";
@@ -78,7 +77,6 @@ interface CustomTemplate {
 
 export default function Dashboard() {
   const { resolvedTheme } = useTheme();
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -165,29 +163,43 @@ export default function Dashboard() {
 
 
   useEffect(() => {
-    // Check active session
+    // Check active session or initialize guest sandbox mode
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-      } else {
+      if (session?.user) {
         setUser(session.user);
-        setLoading(false);
+      } else {
+        setUser({
+          id: "guest-sandbox",
+          email: "evaluator@logstrata.io",
+          app_metadata: {},
+          user_metadata: {},
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+        } as User);
       }
+      setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        router.push("/login");
-      } else {
+      if (session?.user) {
         setUser(session.user);
-        setLoading(false);
+      } else {
+        setUser({
+          id: "guest-sandbox",
+          email: "evaluator@logstrata.io",
+          app_metadata: {},
+          user_metadata: {},
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+        } as User);
       }
+      setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
   // Refs for chart history
   const telemetryHistory = useRef<TelemetryPoint[]>(
@@ -896,56 +908,146 @@ export default function Dashboard() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      canvas.width = width;
-      canvas.height = height;
 
-      ctx.clearRect(0, 0, width, height);
+      if (width === 0 || height === 0) return;
 
-      const padding = 12;
-      const graphWidth = width - padding * 2;
-      const graphHeight = height - padding * 2;
-
-      const dark = document.documentElement.classList.contains("dark");
-      ctx.strokeStyle = dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
-      ctx.lineWidth = 1;
-
-      // Draw grid
-      for (let j = 1; j < 4; j++) {
-        const yVal = padding + (graphHeight / 4) * j;
-        ctx.beginPath();
-        ctx.moveTo(padding, yVal);
-        ctx.lineTo(width - padding, yVal);
-        ctx.stroke();
+      if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
       }
 
-      const drawLine = (dataKey: keyof TelemetryPoint, color: string, maxVal: number) => {
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      const paddingLeft = 32;
+      const paddingRight = 16;
+      const paddingTop = 16;
+      const paddingBottom = 24;
+
+      const graphWidth = width - paddingLeft - paddingRight;
+      const graphHeight = height - paddingTop - paddingBottom;
+
+      const dark = document.documentElement.classList.contains("dark");
+      
+      // Draw horizontal dashed grid guides & labels
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.fillStyle = dark ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.35)";
+      ctx.textAlign = "right";
+
+      const gridSteps = [
+        { pct: 1.0, label: "100%" },
+        { pct: 0.75, label: "75%" },
+        { pct: 0.5, label: "50%" },
+        { pct: 0.25, label: "25%" },
+      ];
+
+      gridSteps.forEach(({ pct, label }) => {
+        const yVal = paddingTop + graphHeight * (1 - pct);
         ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.2;
-        ctx.lineJoin = "round";
+        ctx.strokeStyle = dark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.05)";
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.moveTo(paddingLeft, yVal);
+        ctx.lineTo(width - paddingRight, yVal);
+        ctx.stroke();
+        ctx.fillText(label, paddingLeft - 6, yVal + 3);
+      });
+      ctx.setLineDash([]);
 
-        const points = telemetryHistory.current;
+      const points = telemetryHistory.current;
+      if (points.length < 2) {
+        ctx.restore();
+        animationId = requestAnimationFrame(drawChart);
+        return;
+      }
+
+      // Draw metric series with smooth curves and gradient area fills
+      const drawMetricSeries = (
+        dataKey: keyof TelemetryPoint,
+        strokeColor: string,
+        fillColorTop: string,
+        maxVal: number
+      ) => {
+        const coords: Array<{ x: number; y: number }> = [];
+
         for (let i = 0; i < points.length; i++) {
-          const x = padding + (graphWidth / (points.length - 1)) * i;
+          const x = paddingLeft + (graphWidth / (points.length - 1)) * i;
           const val = points[i][dataKey];
-          const y = padding + graphHeight - graphHeight * (val / maxVal);
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
+          const clamped = Math.max(0, Math.min(maxVal, val));
+          const y = paddingTop + graphHeight - (clamped / maxVal) * graphHeight;
+          coords.push({ x, y });
         }
+
+        // 1. Draw smooth area gradient under the curve
+        const areaGrad = ctx.createLinearGradient(0, paddingTop, 0, paddingTop + graphHeight);
+        areaGrad.addColorStop(0, fillColorTop);
+        areaGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        ctx.beginPath();
+        ctx.moveTo(coords[0].x, paddingTop + graphHeight);
+        ctx.lineTo(coords[0].x, coords[0].y);
+
+        for (let i = 0; i < coords.length - 1; i++) {
+          const xc = (coords[i].x + coords[i + 1].x) / 2;
+          const yc = (coords[i].y + coords[i + 1].y) / 2;
+          ctx.quadraticCurveTo(coords[i].x, coords[i].y, xc, yc);
+        }
+        ctx.lineTo(coords[coords.length - 1].x, coords[coords.length - 1].y);
+        ctx.lineTo(coords[coords.length - 1].x, paddingTop + graphHeight);
+        ctx.closePath();
+        ctx.fillStyle = areaGrad;
+        ctx.fill();
+
+        // 2. Draw crisp stroke line with subtle glow
+        ctx.beginPath();
+        ctx.moveTo(coords[0].x, coords[0].y);
+        for (let i = 0; i < coords.length - 1; i++) {
+          const xc = (coords[i].x + coords[i + 1].x) / 2;
+          const yc = (coords[i].y + coords[i + 1].y) / 2;
+          ctx.quadraticCurveTo(coords[i].x, coords[i].y, xc, yc);
+        }
+        ctx.lineTo(coords[coords.length - 1].x, coords[coords.length - 1].y);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = strokeColor;
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 3. Leading edge pulse point
+        const lastCoord = coords[coords.length - 1];
+        ctx.beginPath();
+        ctx.arc(lastCoord.x, lastCoord.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = strokeColor;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(lastCoord.x, lastCoord.y, 6.5, 0, Math.PI * 2);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1;
         ctx.stroke();
       };
 
-      // Draw the metrics
-      drawLine("cpu", "#f59e0b", 100);       // CPU (Amber)
-      drawLine("errors", "#ef4444", 100);    // Errors (Red)
-      drawLine("replicas", "#06b6d4", 12);   // Replicas (Blue)
+      // Draw series: Replicas (cyan/emerald), CPU (amber), Errors (red)
+      drawMetricSeries("replicas", "#06b6d4", "rgba(6, 182, 212, 0.16)", 12);
+      drawMetricSeries("cpu", "#f59e0b", "rgba(245, 158, 11, 0.14)", 100);
+      drawMetricSeries("errors", "#ef4444", "rgba(239, 68, 68, 0.22)", 100);
 
+      // Bottom time labels
+      ctx.font = "8px 'JetBrains Mono', monospace";
+      ctx.fillStyle = dark ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.3)";
+      ctx.textAlign = "center";
+      ctx.fillText("-60s", paddingLeft, height - 8);
+      ctx.fillText("-45s", paddingLeft + graphWidth * 0.25, height - 8);
+      ctx.fillText("-30s", paddingLeft + graphWidth * 0.5, height - 8);
+      ctx.fillText("-15s", paddingLeft + graphWidth * 0.75, height - 8);
+      ctx.fillText("LIVE", width - paddingRight, height - 8);
+
+      ctx.restore();
       animationId = requestAnimationFrame(drawChart);
     };
 

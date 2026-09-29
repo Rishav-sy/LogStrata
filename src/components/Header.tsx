@@ -101,8 +101,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Middle: Nav Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-6 h-full">
+          {/* Middle: Nav Links (Desktop & Tablet) */}
+          <nav className="hidden sm:flex items-center gap-3 md:gap-6 h-full">
             <HeaderNavLink
               href="/#features"
               label="Features"
@@ -185,7 +185,7 @@ export function Header() {
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-[6px] border border-hairline bg-canvas hover:bg-canvas-soft text-body transition-colors focus-visible:ring-1 focus-visible:ring-primary focus:outline-none"
+              className="sm:hidden flex h-8 w-8 items-center justify-center rounded-[6px] border border-hairline bg-canvas hover:bg-canvas-soft text-body transition-colors focus-visible:ring-1 focus-visible:ring-primary focus:outline-none"
               aria-label="Toggle Navigation Menu"
             >
               <Menu className="h-4 w-4" />
@@ -196,7 +196,7 @@ export function Header() {
 
       {/* Mobile Dropdown Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-16 z-40 border-b border-hairline bg-canvas px-6 py-4 shadow-diffused transition-all duration-200">
+        <div className="sm:hidden fixed inset-x-0 top-16 z-40 border-b border-hairline bg-canvas px-6 py-4 shadow-diffused transition-all duration-200">
           <nav className="flex flex-col gap-2">
             <Link
               href="/#features"
@@ -204,6 +204,14 @@ export function Header() {
               className="flex items-center justify-between rounded-[6px] px-3 py-2 text-xs font-medium text-body hover:text-ink hover:bg-canvas-soft"
             >
               <span>Features</span>
+              <ChevronRight className="h-3.5 w-3.5 text-mute" />
+            </Link>
+            <Link
+              href="/#benchmarks"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between rounded-[6px] px-3 py-2 text-xs font-medium text-body hover:text-ink hover:bg-canvas-soft"
+            >
+              <span>Benchmarks</span>
               <ChevronRight className="h-3.5 w-3.5 text-mute" />
             </Link>
             <Link

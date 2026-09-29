@@ -184,10 +184,13 @@ export function useDaemonStream({
     }
 
     let cancelled = false;
+    let failCount = 0;
 
     function scheduleReconnect() {
       if (cancelled) return;
-      const delay = reconnectMsRef.current;
+      failCount++;
+      const baseDelay = reconnectMsRef.current;
+      const delay = Math.min(30000, baseDelay * Math.pow(1.5, Math.min(5, failCount - 1)));
       if (delay > 0) {
         reconnectTimerRef.current = setTimeout(openStream, delay);
       }
@@ -222,6 +225,7 @@ export function useDaemonStream({
 
       es.onopen = () => {
         if (!cancelled) {
+          failCount = 0;
           setConnectionState("connected");
         }
       };
